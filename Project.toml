@@ -1,0 +1,8 @@
+name = "SynthControl"
+uuid = "a73a6d50-3b99-11e9-2e1c-6f5007f3555d"
+authors = ["Nils <nilshg@hotmail.com>"]
+version = "0.1.0"
+
+[deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
