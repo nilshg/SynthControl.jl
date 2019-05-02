@@ -1,8 +1,9 @@
 module SynthControl
 
 using DataFrames, Optim, LinearAlgebra, RecipesBase
+import CSV
 
-export SynthControlModel, fit!, isfitted
+export SynthControlModel, fit!, isfitted, load_brexit
 
 mutable struct SynthControlModel
     data::DataFrame
@@ -101,17 +102,31 @@ end
 @recipe function f(s::SynthControlModel)
     legend --> :topleft
 
-     @series begin
-         label --> s.treat_id
-         s.y
-     end
+    @series begin
+        label --> s.treat_id
+        s.y
+    end
 
-     @series begin
-         label --> "Control"
-         s.ŷ
-     end
+    @series begin
+        label --> "Control"
+        s.ŷ
+    end
+
+    @series begin
+        label --> "Impact"
+        seriestype := :bar
+        #@show collect(1:s.no_treat_t), s.δ
+        collect(s.no_pretreat_t+1:length(s.y)), s.δ
+    end
 
      ()
 end
+
+# Data loading for example
+function load_brexit()
+    df = CSV.read(joinpath(dirname(@__FILE__),"..","data","brexit.csv"))
+    df = dropmissing(df[:, 1:4], disallowmissing=true)
+end
+
 
 end # module

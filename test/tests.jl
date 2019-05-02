@@ -1,8 +1,7 @@
 using Revise
 using SynthControl, CSV, Plots, DataFrames
 
-df = CSV.read("C:/Users/Nils-Holger/Desktop/Input data - cost of Brexit 2018q3.csv")
-df = dropmissing(df[:, 1:4], disallowmissing=true)
+df = load_brexit()
 
 s = SynthControlModel(df, :country, :dateid, :realgdp, 86, "United Kingdom")
 
