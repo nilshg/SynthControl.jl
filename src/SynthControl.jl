@@ -1,73 +1,117 @@
-#To delete - test data from CER Brexit study
-df = CSV.read("C:/Users/Nils-Holger/Desktop/Input data - cost of Brexit 2018q3.csv")
-
-treat_id = "United Kingdom"
-pid = :country
-tid = :dateid
-outcome = :realgdp
-t_treat = 86
-
 module SynthControl
 
-import Base:show
-using DataFrames, Optim, LinearAlgebra, Plots
-export estimate_model
+using DataFrames, Optim, LinearAlgebra, RecipesBase
 
-function fit(df::DataFrame, pid::Symbol, tid::Symbol, outcome::Symbol,
-    treat_id, treat_t)
+export SynthControlModel, fit!, isfitted
 
-    # Get dimensions of problem
-    no_comps = length(unique(df[pid])) - 1
-    no_pretreat_t = length(unique(df[df[tid] .< t_treat, tid]))
-    no_treat_t = length(unique(df[df[tid] .>= t_treat, tid]))
+mutable struct SynthControlModel
+    data::DataFrame
+    pid::Symbol
+    tid::Symbol
+    outcome::Symbol
+    treat_t
+    treat_id
+    y::Vector{Float64}
+    no_comps::Int
+    no_pretreat_t::Int
+    no_treat_t::Int
+    comps::Array{Float64, 2}
+    w::Vector{Float64}
+    ŷ::Vector{Float64}
+    δ::Vector{Float64}
+    p_test_res::Array{Float64, 2}
+end
+
+SynthControlModel(data::DataFrame, pid::Symbol, tid::Symbol, outcome::Symbol,
+    treat_t, treat_id) = SynthControlModel(
+    data,
+    pid,
+    tid,
+    outcome,
+    treat_t,
+    treat_id,
+    data[data[pid].==treat_id, outcome], # y
+    length(unique(data[pid])) - 1, # no_comps
+    length(unique(data[data[tid] .< treat_t, tid])), # no_pretreat_t
+    length(unique(data[data[tid] .>= treat_t, tid])), # no_treat_t
+    collect(reshape(data[.!(data[pid] .== treat_id) .&( data[tid].<treat_t), outcome],
+            length(unique(data[pid])) - 1, length(unique(data[data[tid] .< treat_t, tid])))'), # comps
+    zeros(length(unique(data[data[tid].>=treat_t, tid]))), # ŷ (uninitialized)
+    zeros(length(unique(data[pid])) - 1), # w
+    zeros(length(unique(data[data[tid] .>= treat_t, tid]))), # delta
+    zeros(length(unique(data[data[tid] .>= treat_t, tid])),
+          length(unique(data[pid]))) # p_test_res
+    )
+
+isfitted(s::SynthControlModel) = sum(s.w) ≈ 0.0 ? false : true
+
+function fit!(s::SynthControlModel; placebo_test = false)
 
     # Estimation target
-    y = df[df[pid] .== treat_id, outcome]
-    y_pre = y[1:no_pretreat_t]
-
-    # Create comparator matrix
-    comps = df[.!(df[pid] .== treat_id) .& (df[tid] .< t_treat), outcome]
-    comps = collect(reshape(comps, no_comps, no_pretreat_t)')
+    y_pre = s.y[1:s.no_pretreat_t]
 
     # Objective function
-    obj(w) = norm(y_pre - sum((w .* comps')', dims=2)) + 1_000_000*abs(1-sum(w))
+    obj(w) = norm(y_pre - sum((w .* s.comps')', dims=2)) + 1_000_000*abs(1-sum(w))
 
     # Initial condition and bounds
-    initial = [1. / no_comps for _ in 1:no_comps]
-    lower = zeros(no_comps)
-    upper = ones(no_comps)
+    initial = [1e-5 for _ in 1:s.no_comps]
+    lower = zeros(s.no_comps)
+    upper = ones(s.no_comps)
 
     # Get weights through optimization
     res = optimize(obj, lower, upper, initial)
-    w_res = res.minimizer
+    s.w = res.minimizer
 
-    ŷ = sum((w_res .* reshape(df[.!(df.country .== "United Kingdom"), :realgdp],
-                    no_comps, length(unique(df.dateid))))', dims = 2)
+    # Get estimates
+    s.ŷ = vec(sum((s.w .* reshape(s.data[.!(s.data[s.pid] .== s.treat_id), s.outcome],
+                    s.no_comps, length(unique(s.data[s.tid]))))', dims = 2))
 
-    return (y-ŷ)[no_pretreat_t+1:end], ŷ, w_res
-end
+    s.δ = (s.y .- s.ŷ)[s.no_pretreat_t+1:end]
 
-function estimate_model(df::DataFrame, pid::Symbol, tid::Symbol, outcome::Symbol,
-    treat_id, treat_t)
+    if placebo_test
+        placebos = unique(s.data[.!(s.data[s.pid] .== s.treat_id), s.pid])
+        p = deepcopy(s)
 
-    δ, ŷ, w = fit(df, pid, tid, outcome, treat_id, treat_t)
-
-    # Standard Errors
-    placebos = unique(df[.!(df[pid] .== treat_id), pid])
-    p_test_res = Array{Float64}(undef, length(placebos), no_treat_t)
-    for (i, placebo) ∈ enumerate(placebos)
-        p_test_res[i, :] = fit(df, pid, tid, outcome, placebo, t_treat)[1]
+        for n ∈ 1:no_comps
+            # change treatment ID
+            p.treat_id = placebos[n]
+            # change outcome data
+            p.y = p.data[p.data[p.pid].==p.treat_id, p.outcome]
+            p.comps = collect(reshape(p.data[.!(p.data[p.pid] .== p.treat_id
+                                               ) .& (p.data[p.tid] .< p.treat_t), p.outcome],
+                                      p.no_comps, p.no_pretreat_t)')
+            fit!(p)
+            p_test_res[n, :] = p.ŷ[s.no_pretreat_t+1:end]
+        end
     end
 
-    return δ, ŷ, w, p_test_res
+    return s
 end
 
-δ, ŷ, w, placebos = estimate_model(df, pid, tid, outcome, "United Kingdom", 86)
+#function plot_estimates(s::SynthControlModel)
+#    plot(s.y, label = s.treat_id, legend = :topleft)
+#    plot!(s.ŷ, label = "Control")
+#    vline!([s.no_pretreat_t], label = "Treatment")
+#    bar!(s.no_pretreat_t+1:length(s.y), s.δ, color = "cornflowerblue", alpha = 0.8,
+#            label = "Estimated impact")
+#end
 
-function plot_estimates()
-    plot(y, label = treat_id, legend = :topleft)
-    plot!(ŷ, label = "Control")
-    vline!([no_pretreat_t], label = "Treatment")
+# Define plotting recipe
+
+@recipe function f(s::SynthControlModel)
+    legend --> :topleft
+
+     @series begin
+         label --> s.treat_id
+         s.y
+     end
+
+     @series begin
+         label --> "Control"
+         s.ŷ
+     end
+
+     ()
 end
 
 end # module
