@@ -83,7 +83,7 @@ julia> using Plots
 
 julia> plot(s_model)
 ```
-[Sample output](readme.png)
+![Sample output](readme.png)
 
 To do:
 * Inference
