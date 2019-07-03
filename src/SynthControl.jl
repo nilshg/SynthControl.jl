@@ -82,23 +82,14 @@ function fit!(s::SynthControlModel; placebo_test = false)
                                                ) .& (p.data[p.tid] .< p.treat_t), p.outcome],
                                       p.no_comps, p.no_pretreat_t)')
             fit!(p)
-            p_test_res[n, :] = p.ŷ[s.no_pretreat_t+1:end]
+            s.p_test_res[n, :] = p.ŷ[s.no_pretreat_t+1:end]
         end
     end
 
     return s
 end
 
-#function plot_estimates(s::SynthControlModel)
-#    plot(s.y, label = s.treat_id, legend = :topleft)
-#    plot!(s.ŷ, label = "Control")
-#    vline!([s.no_pretreat_t], label = "Treatment")
-#    bar!(s.no_pretreat_t+1:length(s.y), s.δ, color = "cornflowerblue", alpha = 0.8,
-#            label = "Estimated impact")
-#end
-
 # Define plotting recipe
-
 @recipe function f(s::SynthControlModel)
     legend --> :topleft
 
@@ -128,5 +119,26 @@ function load_brexit()
     df = dropmissing(df[:, 1:4], disallowmissing=true)
 end
 
+# Pretty printing
+import Base.show
+
+function show(io::IO, ::MIME"text/plain", s::SynthControlModel)
+
+    println("Synthetic Control Model\n")
+    println("Outcome variable: ",string(s.outcome))
+    println("Time dimension: ",string(s.tid)," with ",
+            string(length(unique(s.data[s.tid]))), " unique values")
+    println("Treatment period: ",string(s.treat_t))
+    println("ID variable: ",string(s.pid), " with ",
+            string(length(unique(s.data[s.pid]))), " unique values")
+    println("Treatment ID: ",string(s.treat_id))
+
+    if isfitted(s)
+      println("Model is fitted")
+      println("Impact estimates: ",round.(s.δ, digits=3))
+    else
+      println("\nModel is not fitted")
+    end
+end
 
 end # module
