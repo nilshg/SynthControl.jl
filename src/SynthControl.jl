@@ -41,7 +41,7 @@ SynthControlModel(data::DataFrame, pid::Symbol, tid::Symbol, outcome::Symbol,
     zeros(length(unique(data[pid])) - 1), # w
     zeros(length(unique(data[data[tid] .>= treat_t, tid]))), # delta
     zeros(length(unique(data[data[tid] .>= treat_t, tid])),
-          length(unique(data[pid]))) # p_test_res
+          length(unique(data[pid]))-1) # p_test_res
     )
 
 isfitted(s::SynthControlModel) = sum(s.w) ≈ 0.0 ? false : true
@@ -73,16 +73,16 @@ function fit!(s::SynthControlModel; placebo_test = false)
         placebos = unique(s.data[.!(s.data[s.pid] .== s.treat_id), s.pid])
         p = deepcopy(s)
 
-        for n ∈ 1:no_comps
+        for n ∈ 1:p.no_comps
+            println(n)
             # change treatment ID
             p.treat_id = placebos[n]
             # change outcome data
             p.y = p.data[p.data[p.pid].==p.treat_id, p.outcome]
-            p.comps = collect(reshape(p.data[.!(p.data[p.pid] .== p.treat_id
-                                               ) .& (p.data[p.tid] .< p.treat_t), p.outcome],
-                                      p.no_comps, p.no_pretreat_t)')
+            p.comps = collect(reshape(p.data[.!(p.data[p.pid] .== p.treat_id) .&( p.data[p.tid].<p.treat_t), p.outcome],
+                    length(unique(p.data[p.pid])) - 1, length(unique(p.data[p.data[p.tid] .< p.treat_t, p.tid])))')
             fit!(p)
-            s.p_test_res[n, :] = p.ŷ[s.no_pretreat_t+1:end]
+            s.p_test_res[:, n] = p.δ
         end
     end
 
@@ -106,7 +106,6 @@ end
     @series begin
         label --> "Impact"
         seriestype := :bar
-        #@show collect(1:s.no_treat_t), s.δ
         collect(s.no_pretreat_t+1:length(s.y)), s.δ
     end
 
