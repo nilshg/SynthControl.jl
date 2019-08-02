@@ -126,10 +126,10 @@ function show(io::IO, ::MIME"text/plain", s::SynthControlModel)
     println("Synthetic Control Model\n")
     println("Outcome variable: ",string(s.outcome))
     println("Time dimension: ",string(s.tid)," with ",
-            string(length(unique(s.data[s.tid]))), " unique values")
+            string(length(unique(s.data[!,s.tid]))), " unique values")
     println("Treatment period: ",string(s.treat_t))
     println("ID variable: ",string(s.pid), " with ",
-            string(length(unique(s.data[s.pid]))), " unique values")
+            string(length(unique(s.data[!,s.pid]))), " unique values")
     println("Treatment ID: ",string(s.treat_id))
 
     if isfitted(s)
