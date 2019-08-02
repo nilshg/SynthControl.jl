@@ -109,7 +109,7 @@ end
         collect(s.no_pretreat_t+1:length(s.y)), s.δ
     end
 
-     ()
+     nothing
 end
 
 # Data loading for example
