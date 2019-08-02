@@ -65,7 +65,7 @@ function fit!(s::SynthControlModel; placebo_test = false)
 
     # Get estimates
     s.ŷ = vec(sum((s.w .* reshape(s.data[.!(s.data[!,s.pid] .== s.treat_id), s.outcome],
-                    s.no_comps, length(unique(s.data[s.tid]))))', dims = 2))
+                    s.no_comps, length(unique(s.data[!,s.tid]))))', dims = 2))
 
     s.δ = (s.y .- s.ŷ)[s.no_pretreat_t+1:end]
 
