@@ -5,7 +5,7 @@ The package is at alpha stage - there's a bare bones implementation that can be 
 
 ## Installation
 
-The package is currently unregistered, installation therefore works from directly
+The package is currently unregistered, installation therefore works directly
 from the repo:
 
 ```
