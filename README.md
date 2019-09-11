@@ -92,3 +92,4 @@ To do:
 * Documentation
 * Tests
 * Consider dropping DataFrames dependency in favour of Tables
+* Include [Augmented Synthetic Control](https://eml.berkeley.edu/~jrothst/workingpapers/BMFR_Synth_Nov_2018.pdf)
