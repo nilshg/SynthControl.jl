@@ -1,7 +1,7 @@
 # SynthControl.jl
 Julia package for synthetic control methods, implementing the technique described in [Abadie et al. (2010)](https://economics.mit.edu/files/11859)
 
-The package is an early draft and rather proof of concept.
+The package is at alpha stage - there's a bare bones implementation that can be used to obtain results and plot them, as well as an implementation of a placebo test, but no formal inference. 
 
 ## Installation
 
