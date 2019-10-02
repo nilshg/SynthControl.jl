@@ -1,11 +1,11 @@
 # SynthControl.jl
 Julia package for synthetic control methods, implementing the technique described in [Abadie et al. (2010)](https://economics.mit.edu/files/11859)
 
-The package is an early draft and rather proof of concept.
+The package is at alpha stage - there's a bare bones implementation that can be used to obtain results and plot them, as well as an implementation of a placebo test, but no formal inference. 
 
 ## Installation
 
-The package is currently unregistered, installation therefore works from directly
+The package is currently unregistered, installation therefore works directly
 from the repo:
 
 ```
@@ -83,7 +83,7 @@ julia> using Plots
 
 julia> plot(s_model)
 ```
-![Sample output](readme.png)
+![Sample output](synthcontrol.PNG)
 
 To do:
 * Inference
@@ -92,3 +92,4 @@ To do:
 * Documentation
 * Tests
 * Consider dropping DataFrames dependency in favour of Tables
+* Include [Augmented Synthetic Control](https://eml.berkeley.edu/~jrothst/workingpapers/BMFR_Synth_Nov_2018.pdf)
