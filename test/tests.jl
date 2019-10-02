@@ -1,16 +1,18 @@
-using Revise
+using Test
 using SynthControl, CSV, Plots, DataFrames
 
-df = load_brexit()
+@testset "brexit" begin
+  df = load_brexit()
 
-s = SynthControlModel(df, :country, :dateid, :realgdp, 86, "United Kingdom")
+  s = SynthControlModel(df, :country, :dateid, :realgdp, 86, "United Kingdom")
 
-@assert isfitted(s) == false
+  @assert isfitted(s) == false
 
-fit!(s)
+  fit!(s)
 
-@assert isfitted(s) == true
+  @assert isfitted(s) == true
 
-@assert s.no_comps == 22
+  @assert s.no_comps == 22
+end
 
-plot(s)
+
