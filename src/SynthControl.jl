@@ -23,26 +23,23 @@ mutable struct SynthControlModel
     p_test_res::Array{Float64, 2}
 end
 
-SynthControlModel(data::DataFrame, pid::Symbol, tid::Symbol, outcome::Symbol,
-    treat_t, treat_id) = SynthControlModel(
-    data,
-    pid,
-    tid,
-    outcome,
-    treat_t,
-    treat_id,
-    data[data[!,pid].==treat_id, outcome], # y
-    length(unique(data[!,pid])) - 1, # no_comps
-    length(unique(data[data[!,tid] .< treat_t, tid])), # no_pretreat_t
-    length(unique(data[data[!,tid] .>= treat_t, tid])), # no_treat_t
-    collect(reshape(data[.!(data[!,pid] .== treat_id) .&( data[!,tid].<treat_t), outcome],
-            length(unique(data[!,pid])) - 1, length(unique(data[data[!,tid] .< treat_t, tid])))'), # comps
-    zeros(length(unique(data[data[!,tid].>=treat_t, tid]))), # ŷ (uninitialized)
-    zeros(length(unique(data[!,pid])) - 1), # w
-    zeros(length(unique(data[data[!,tid] .>= treat_t, tid]))), # delta
-    zeros(length(unique(data[data[!,tid] .>= treat_t, tid])),
-          length(unique(data[!,pid]))-1) # p_test_res
-    )
+function SynthControlModel(data::DataFrame, pid::Symbol, tid::Symbol, outcome::Symbol,
+    treat_t, treat_id)
+
+    y = data[data[!, pid] .== treat_id, outcome]
+    no_comps = length(unique(data[! ,pid])) - 1
+    no_pretreat_t = length(unique(data[data[! ,tid] .< treat_t, tid]))
+    no_treat_t = length(unique(data[data[! ,tid] .>= treat_t, tid]))
+    comp_outcomes = data[.!(data[!,pid] .== treat_id) .&( data[!,tid].<treat_t), outcome]
+    comps = collect(reshape(comp_outcomes, no_comps, no_pretreat_t)')
+    ŷ = zeros(length(y))
+    w = zeros(no_comps)
+    δ = zeros(no_treat_t)
+    p_test_res = zeros(length(y), no_comps)
+
+    SynthControlModel(data, pid, tid, outcome, treat_t, treat_id, y, no_comps,
+        no_pretreat_t, no_treat_t, comps, w, ŷ, δ, p_test_res)
+end
 
 isfitted(s::SynthControlModel) = sum(s.w) ≈ 0.0 ? false : true
 
@@ -74,18 +71,16 @@ function fit!(s::SynthControlModel; placebo_test = false)
         p = deepcopy(s)
 
         for n ∈ 1:p.no_comps
-            println(n)
             # change treatment ID
             p.treat_id = placebos[n]
             # change outcome data
-            p.y = p.data[p.data[p.pid].==p.treat_id, p.outcome]
+            p.y = p.data[p.data[!, p.pid] .== p.treat_id, p.outcome]
             p.comps = collect(reshape(p.data[.!(p.data[!,p.pid] .== p.treat_id) .&( p.data[!,p.tid].<p.treat_t), p.outcome],
-                    length(unique(p.data[!,p.pid])) - 1, length(unique(p.data[p.data[!,p.tid] .< p.treat_t, p.tid])))')
+                    p.no_comps, p.no_pretreat_t)')
             fit!(p)
-            s.p_test_res[:, n] = p.δ
+            s.p_test_res[:, n] = p.y .- p.ŷ
         end
     end
-
     return s
 end
 
@@ -95,18 +90,27 @@ end
 
     @series begin
         label --> s.treat_id
-        s.y
+        sort!(unique(s.data[!, s.tid])), s.y
     end
 
     @series begin
         label --> "Control"
-        s.ŷ
+        sort!(unique(s.data[!, s.tid])), s.ŷ
+    end
+
+    @series begin
+        label --> "Intervention"
+        seriestype := :vline
+        linestyle := :dash
+        [s.treat_t]
     end
 
     @series begin
         label --> "Impact"
         seriestype := :bar
-        collect(s.no_pretreat_t+1:length(s.y)), s.δ
+        alpha := 0.3
+        colour := "salmon"
+        minimum(s.data[!, s.tid]) .+ collect(s.no_pretreat_t+1:length(s.y)), s.δ
     end
 
      nothing
