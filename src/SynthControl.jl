@@ -52,7 +52,7 @@ function fit!(s::SynthControlModel; placebo_test = false)
     obj(w) = norm(y_pre - sum((w .* s.comps')', dims=2)) + 1_000_000*abs(1-sum(w))
 
     # Initial condition and bounds
-    initial = [1e-5 for _ in 1:s.no_comps]
+    initial = fill(1e-5, s.no_comps)
     lower = zeros(s.no_comps)
     upper = ones(s.no_comps)
 
