@@ -30,7 +30,7 @@ function SynthControlModel(data::DataFrame, pid::Symbol, tid::Symbol, outcome::S
     no_comps = length(unique(data[! ,pid])) - 1
     no_pretreat_t = length(unique(data[data[! ,tid] .< treat_t, tid]))
     no_treat_t = length(unique(data[data[! ,tid] .>= treat_t, tid]))
-    comp_outcomes = data[.!(data[!,pid] .== treat_id) .&( data[!,tid].<treat_t), outcome]
+    comp_outcomes = data[(data[!,pid] .!= treat_id) .& (data[!,tid].<treat_t), outcome]
     comps = collect(reshape(comp_outcomes, no_comps, no_pretreat_t)')
     ŷ = zeros(length(y))
     w = zeros(no_comps)
@@ -61,13 +61,13 @@ function fit!(s::SynthControlModel; placebo_test = false)
     s.w = res.minimizer
 
     # Get estimates
-    s.ŷ = vec(sum((s.w .* reshape(s.data[.!(s.data[!,s.pid] .== s.treat_id), s.outcome],
+    s.ŷ = vec(sum((s.w .* reshape(s.data[(s.data[!,s.pid] .!= s.treat_id), s.outcome],
                     s.no_comps, length(unique(s.data[!,s.tid]))))', dims = 2))
 
     s.δ = (s.y .- s.ŷ)[s.no_pretreat_t+1:end]
 
     if placebo_test
-        placebos = unique(s.data[.!(s.data[!,s.pid] .== s.treat_id), s.pid])
+        placebos = unique(s.data[(s.data[!,s.pid] .!= s.treat_id), s.pid])
         p = deepcopy(s)
 
         for n ∈ 1:p.no_comps
@@ -75,7 +75,7 @@ function fit!(s::SynthControlModel; placebo_test = false)
             p.treat_id = placebos[n]
             # change outcome data
             p.y = p.data[p.data[!, p.pid] .== p.treat_id, p.outcome]
-            p.comps = collect(reshape(p.data[.!(p.data[!,p.pid] .== p.treat_id) .&( p.data[!,p.tid].<p.treat_t), p.outcome],
+            p.comps = collect(reshape(p.data[(p.data[!,p.pid] .!= p.treat_id) .& (p.data[!,p.tid].<p.treat_t), p.outcome],
                     p.no_comps, p.no_pretreat_t)')
             fit!(p)
             s.p_test_res[:, n] = p.y .- p.ŷ
