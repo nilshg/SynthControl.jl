@@ -5,26 +5,45 @@ import CSV
 
 export SynthControlModel, fit!, isfitted, load_brexit
 
+"""
+    SynthControlModel
+
+Holds the data, model information, and results of a synthetic control model
+
+# Members
+
+- `data`: The dataset on which the model is esitmated
+- `outcome`: Column name of the outcome variable of interest in the data
+- `pid`: Column name of the panel id variable in the data
+- `tid`: Column name of the time period variable in the data
+- `treat_id`:  The name of the treated unit - should be an element of `data.pid`
+- `treat_t`: The first period of treatment - should be an element of `data.tid`
+
+Currently, only a single treatment unit and a single treatment period are supported.
+
+
+"""
 mutable struct SynthControlModel
-    data::DataFrame
-    pid::Symbol
-    tid::Symbol
-    outcome::Symbol
-    treat_t
-    treat_id
-    y::Vector{Float64}
-    no_comps::Int
-    no_pretreat_t::Int
-    no_treat_t::Int
-    comps::Array{Float64, 2}
-    w::Vector{Float64}
-    ŷ::Vector{Float64}
-    δ::Vector{Float64}
-    p_test_res::Array{Float64, 2}
+    data::DataFrame # Data set
+    outcome::Symbol # Variable of interest
+    pid::Symbol # Column name of column holding panel id variable
+    tid::Symbol # Column name of column holdign time id variable
+    treat_id # Identifier of treated unit
+    treat_t # First treatment period
+    y::Vector{Float64} # Vector of outcomes
+    no_comps::Int # Number of untreated units
+    no_pretreat_t::Int # Number of pre-treatment periods
+    no_treat_t::Int # Number of treatment periods
+    comps::Array{Float64, 2} # Matrix of pre-treatment outcomes for untreated units
+                             # dimension (no_comps × no_pretreat_t)
+    w::Vector{Float64} # Vector of weights
+    ŷ::Vector{Float64} # Vector of post-treatment outcomes for synthetic unit
+    δ::Vector{Float64} # Vector of estimated treatmet impacts
+    p_test_res::Array{Float64, 2} # Matrix of outcomes for untreated under placebo
 end
 
-function SynthControlModel(data::DataFrame, pid::Symbol, tid::Symbol, outcome::Symbol,
-    treat_t, treat_id)
+function SynthControlModel(data::DataFrame, outcome::Symbol, pid::Symbol, tid::Symbol,
+    treat_id, treat_t)
 
     y = data[data[!, pid] .== treat_id, outcome]
     no_comps = length(unique(data[! ,pid])) - 1
@@ -37,19 +56,87 @@ function SynthControlModel(data::DataFrame, pid::Symbol, tid::Symbol, outcome::S
     δ = zeros(no_treat_t)
     p_test_res = zeros(length(y), no_comps)
 
-    SynthControlModel(data, pid, tid, outcome, treat_t, treat_id, y, no_comps,
+    SynthControlModel(data, outcome, pid, tid, treat_id, treat_t, y, no_comps,
         no_pretreat_t, no_treat_t, comps, w, ŷ, δ, p_test_res)
 end
 
+function SynthControlModel(data::DataFrame; outcome::Symbol = nothing,
+    pid::Symbol = nothing, tid::Symbol = nothing, treat_id = nothing,
+    treat_t = nothing)
+
+    if isnothing(outcome)
+        error(ArgumentError("""
+        Please specify outcome, the nameof the column in your dataset holding the
+        outcome variable of interest in your dataset
+        """))
+    elseif isnothing(pid)
+        ArgumentError("""
+            Please specify pid, the name of the column in your data set holding the
+            identifier of your units of observation
+            """)
+    elseif isnothing(tid)
+        error(ArgumentError("""
+            Please specify tid, the name of the column in your dataset holding the
+            time dimension
+            """))
+    elseif isnothing(treat_id)
+        ArgumentError("""
+        Please specify treat_id, the identifier of the treated unit(s) in your
+        dataset
+        """)
+    elseif isnothing(treat_t)
+        ArgumentError("""
+            Please specify treat_t, the first treatment period
+            """)
+    else
+        SynthControlModel(data, outcome, pid, tid, treat_id, treat_t)
+    end
+end
+
+
+"""
+isfitted(s::SynthControlModel)
+
+Check whether the `SynthControlModel` object `s` has been fitted.
+
+# Examples
+```julia-repl
+julia> df = load_brexit();
+
+julia> s = SynthControlModel(df, :country, :dateid, :realgdp, 86, "United Kingdom");
+
+julia> isfitted(s)
+false
+
+julia> fit!(s);
+
+julia> isfitted(s)
+true
+
+```
+"""
 isfitted(s::SynthControlModel) = sum(s.w) ≈ 0.0 ? false : true
 
+
+"""
+    fit!(s::SynthControlModel; placebo_test = false)
+
+Fit the `SynthControlModel` `s` by finding the weights that minimize the distance between
+the pre-treatment outcomes for the observational unit of interest and the weighted average
+pre-treatment outcomes for unweighted units.
+
+If `placebo_test = true` is supplied, additional placebo tests will be performed by using
+every non-treated unit in the data set as the treated unit in turn and estimating the
+treatment impact on this unit. Results are stored in the `p_test_res` field and can be
+used as the basis for inference.
+"""
 function fit!(s::SynthControlModel; placebo_test = false)
 
     # Estimation target
     y_pre = s.y[1:s.no_pretreat_t]
 
     # Objective function
-    obj(w) = norm(y_pre - sum((w .* s.comps')', dims=2)) + 1_000_000*abs(1-sum(w))
+    obj(w) = norm(y_pre .- s.comps*w) + 1_000_000*abs(1-sum(w))
 
     # Initial condition and bounds
     initial = [1e-5 for _ in 1:s.no_comps]
@@ -117,8 +204,15 @@ end
 end
 
 # Data loading for example
+"""
+    load_brexit()
+
+Returns a `DataFrame` with quarterly GDP data on 30 OECD countries, borrowed from the
+analysis of the effect of Brexit on UK GDP undertaken by the [Centre for European Reform](
+https://www.cer.eu/insights/cost-brexit-june-2019)
+"""
 function load_brexit()
-    df = CSV.read(joinpath(dirname(@__FILE__),"..","data","brexit.csv"))
+    df = DataFrame(CSV.File(joinpath(dirname(@__FILE__),"..","data","brexit.csv")))
     df = dropmissing(df[:, 1:4], disallowmissing=true)
 end
 

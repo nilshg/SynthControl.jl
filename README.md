@@ -43,7 +43,7 @@ we are interested in estimating the impact of the Brexit vote in Q2 2016 on GDP
 in the UK:
 
 ```
-julia> s_model = SynthControlModel(df, :country, :dateid, :realgdp, 86, "United Kingdom")
+julia> s_model = SynthControlModel(df, :realgdp, :country, :dateid, "United Kingdom", 86)
 Synthetic Control Model
 Outcome variable: realgdp
 Time dimension: dateid with 39 unique values
@@ -90,6 +90,6 @@ To do:
 * Matching on specific covariates
 * Multiple treatment units
 * Documentation
-* Tests
+* Expand testset 
 * Consider dropping DataFrames dependency in favour of Tables
 * Include [Augmented Synthetic Control](https://eml.berkeley.edu/~jrothst/workingpapers/BMFR_Synth_Nov_2018.pdf)
