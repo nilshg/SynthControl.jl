@@ -172,38 +172,54 @@ function fit!(s::SynthControlModel; placebo_test = false)
 end
 
 # Define plotting recipe
-@recipe function f(s::SynthControlModel)
+@recipe function f(s::SynthControlModel; kind = "overall")
     legend --> :topleft
 
-    @series begin
-        label --> s.treat_id
-        sort!(unique(s.data[!, s.tid])), s.y
-    end
+    if kind == "overall"
 
-    @series begin
-        label --> "Control"
-        sort!(unique(s.data[!, s.tid])), s.ŷ
-    end
+        @series begin
+            label --> s.treat_id
+            sort!(unique(s.data[!, s.tid])), s.y
+        end
 
-    @series begin
-        label --> "Intervention"
-        seriestype := :vline
-        linestyle := :dash
-        seriescolor := "black"
-        [s.treat_t]
-    end
+        @series begin
+            label --> "Control"
+            sort!(unique(s.data[!, s.tid])), s.ŷ
+        end
 
-    @series begin
-        label --> "Impact"
-        seriestype := :bar
-        seriesalpha := 0.5
-        linecolor := "white"
-        seriescolor := "darkgreen"
-        xguide := "Time"
-        yguide := "Outcome"
-        sort!(unique(s.data[!, s.tid]))[findfirst(x -> x > s.treat_t,
-                                sort!(unique(s.data[!, s.tid]))):end], s.δ
+        @series begin
+            label --> "Impact"
+            seriestype := :bar
+            seriesalpha := 0.5
+            linecolor := "white"
+            seriescolor := "darkgreen"
+            sort!(unique(s.data[!, s.tid]))[findfirst(x -> x > s.treat_t,
+                                    sort!(unique(s.data[!, s.tid]))):end], s.δ
+        end
+
+    elseif kind == "diffplot"
+        @series begin
+            label --> s.treat_id
+            sort!(unique(s.data[!, s.tid])), s.y .- s.ŷ
+        end
+
+        @series begin
+            label --> ""
+            seriestype := :scatter
+            seriescolor := 1
+            markerstrokecolor := "white"
+            sort!(unique(s.data[!, s.tid])), s.y .- s.ŷ
+        end
     end
+        @series begin
+            label --> "Intervention"
+            seriestype := :vline
+            linestyle := :dash
+            seriescolor := "black"
+            xguide := "Time"
+            yguide := "Outcome"
+            [s.treat_t]
+        end
 
      nothing
 end
