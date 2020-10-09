@@ -189,15 +189,20 @@ end
         label --> "Intervention"
         seriestype := :vline
         linestyle := :dash
+        seriescolor := "black"
         [s.treat_t]
     end
 
     @series begin
         label --> "Impact"
         seriestype := :bar
-        alpha := 0.3
-        colour := "salmon"
-        minimum(s.data[!, s.tid]) .+ collect(s.no_pretreat_t+1:length(s.y)), s.δ
+        seriesalpha := 0.5
+        linecolor := "white"
+        seriescolor := "darkgreen"
+        xguide := "Time"
+        yguide := "Outcome"
+        sort!(unique(s.data[!, s.tid]))[findfirst(x -> x > s.treat_t,
+                                sort!(unique(s.data[!, s.tid]))):end], s.δ
     end
 
      nothing
@@ -221,20 +226,20 @@ import Base.show
 
 function show(io::IO, ::MIME"text/plain", s::SynthControlModel)
 
-    println("Synthetic Control Model\n")
-    println("Outcome variable: ",string(s.outcome))
-    println("Time dimension: ",string(s.tid)," with ",
+    println(io, "\nSynthetic Control Model")
+    println(io, "\tOutcome variable: ", s.outcome)
+    println(io, "\tTime dimension: ",string(s.tid)," with ",
             string(length(unique(s.data[!,s.tid]))), " unique values")
-    println("Treatment period: ",string(s.treat_t))
-    println("ID variable: ",string(s.pid), " with ",
+    println(io, "\tTreatment period: ", string(s.treat_t))
+    println(io, "\tID variable: ",string(s.pid), " with ",
             string(length(unique(s.data[!,s.pid]))), " unique values")
-    println("Treatment ID: ",string(s.treat_id))
+    println(io, "\tTreatment ID: ",string(s.treat_id))
 
     if isfitted(s)
-      println("Model is fitted")
-      println("Impact estimates: ",round.(s.δ, digits=3))
+      println(io, "\tModel is fitted")
+      println(io, "\tImpact estimates: ",round.(s.δ, digits=3))
     else
-      println("\nModel is not fitted")
+      println(io, "\n\tModel is not fitted")
     end
 end
 
