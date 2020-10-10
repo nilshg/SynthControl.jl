@@ -18,6 +18,8 @@ The package includes example data borrowed from the [CER Brexit study](
   https://www.cer.eu/insights/cost-brexit-june-2018):
 
 ```
+julia> using SynthControl
+
 julia> df = load_brexit()
 897×3 DataFrame
 │ Row │ country        │ quarter    │ realgdp │
