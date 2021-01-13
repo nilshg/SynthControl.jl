@@ -136,10 +136,11 @@ function fit!(s::SynthControlModel; placebo_test = false)
     y_pre = s.y[1:s.no_pretreat_t]
 
     # Objective function
-    obj(w) = norm(y_pre .- s.comps*w) + 1_000_000*abs(1-sum(w))
+    # Hat tip to Mathieu Tanneau who suggested switching to a quadratic formulation
+    obj(w) = dot(y_pre .- s.comps*w, y_pre .- s.comps*w) + 1e6*(1.0 - sum(w))^2
 
     # Initial condition and bounds
-    initial = [1e-5 for _ in 1:s.no_comps]
+    initial = [1/s.no_comps for _ in 1:s.no_comps]
     lower = zeros(s.no_comps)
     upper = ones(s.no_comps)
 
