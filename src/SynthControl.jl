@@ -5,6 +5,8 @@ import CSV
 
 export SynthControlModel, fit!, isfitted, load_brexit
 
+abstract type SCM end
+
 """
     SynthControlModel
 
@@ -23,7 +25,7 @@ Currently, only a single treatment unit and a single treatment period are suppor
 
 
 """
-mutable struct SynthControlModel
+mutable struct SynthControlModel <: SCM
     data::DataFrame # Data set
     outcome::Symbol # Variable of interest
     pid::Symbol # Column name of column holding panel id variable
@@ -194,7 +196,7 @@ end
             seriesalpha := 0.5
             linecolor := "white"
             seriescolor := "darkgreen"
-            sort!(unique(s.data[!, s.tid]))[findfirst(x -> x > s.treat_t,
+            sort!(unique(s.data[!, s.tid]))[findfirst(x -> x >= s.treat_t,
                                     sort!(unique(s.data[!, s.tid]))):end], s.δ
         end
 
@@ -234,8 +236,7 @@ analysis of the effect of Brexit on UK GDP undertaken by the [Centre for Europea
 https://www.cer.eu/insights/cost-brexit-june-2019)
 """
 function load_brexit()
-    df = DataFrame(CSV.File(joinpath(dirname(@__FILE__),"..","data","brexit.csv")))
-    df = dropmissing(df[:, 1:4], disallowmissing=true)
+    CSV.read(joinpath(dirname(@__FILE__),"..","data","brexit.csv"), DataFrame)
 end
 
 # Pretty printing
