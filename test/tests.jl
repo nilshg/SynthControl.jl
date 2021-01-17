@@ -1,11 +1,11 @@
 using Test
-using SynthControl, CSV, Plots, DataFrames
+using SynthControl, CSV, DataFrames, Dates
 
 @testset "brexit" begin
   df = load_brexit()
 
-  tp = TreatmentPanel(data = df, outcome = :realgdp, id_var = :country, t_var = :quarter,
-                      treatment = "United Kingdom, 86")
+  tp = TreatmentPanel("United Kingdom" => Date(2016, 7, 1), df;
+                       outcome = :realgdp, id_var = :country, t_var = :quarter)
 
   s = SynthControlModel(tp)
 

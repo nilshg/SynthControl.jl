@@ -49,9 +49,7 @@ Currently, only single treatment unit and continuous treatment is supported.
     comp_labels::Vector{Union{Symbol, String}}
 end
 
-
-function TreatmentPanel(; data = nothing, outcome = nothing, id_var = nothing, t_var = nothing,
-                        treatment::T = nothing) where T <: Pair
+function check_tp(outcome, id_var, t_var, treatment, data)
 
     treatᵢ, treatₜ = treatment
 
@@ -95,6 +93,14 @@ function TreatmentPanel(; data = nothing, outcome = nothing, id_var = nothing, t
         "Please double check specification of treatment period."
         ))
     # To add - checks around balance of panel?
+end
+
+function TreatmentPanel(treatment::T, data;
+                        outcome = nothing, id_var = nothing, t_var = nothing) where T <: Pair
+
+    check_tp(outcome, id_var, t_var, treatment, data)
+
+    treatᵢ, treatₜ = treatment
 
     y_pre = data[(data[!, id_var] .== treatᵢ) .&
                (data[!, t_var] .< treatₜ), outcome]
@@ -107,7 +113,7 @@ function TreatmentPanel(; data = nothing, outcome = nothing, id_var = nothing, t
                (data[!, t_var] .>= treatₜ), outcome]
 
     no_treatment_periods = length(unique(data[data[!, t_var] .>= treatₜ, t_var]))
-    no_pretreat_periods = length(y_pre)
+    no_pretreatment_periods = length(y_pre)
     no_comps = length(unique(data[data[!, id_var] .!= treatᵢ, id_var]))
 
     comp_labels = unique(data[data[!, id_var] .!= treatᵢ, id_var])
@@ -124,7 +130,7 @@ function TreatmentPanel(; data = nothing, outcome = nothing, id_var = nothing, t
         reshape(xs_post, no_comps, no_treatment_periods),
         no_comps,
         no_treatment_periods,
-        no_pretreat_periods,
+        no_pretreatment_periods,
         comp_labels
     )
 end
@@ -309,11 +315,11 @@ function show(io::IO, ::MIME"text/plain", s::SynthControlModel)
     println(io, "\nSynthetic Control Model")
     println(io, "\tOutcome variable: ", s.treatment_panel.outcome)
     println(io, "\tTime dimension: ",string(s.treatment_panel.t_var)," with ",
-            string(length(unique(s.treatment_panel.data[!,s.t_var]))), " unique values")
+            string(length(unique(s.treatment_panel.data[!,s.treatment_panel.t_var]))), " unique values")
     println(io, "\tTreatment period: ", string(s.treatment_panel.treatment[2]))
     println(io, "\tID variable: ",string(s.treatment_panel.id_var), " with ",
-            string(length(unique(s.treatment_panel.data[!,s.treatment_panel.pid]))), " unique values")
-    println(io, "\tTreatment ID: ",string(s.treatment_panel.treat_id))
+            string(length(unique(s.treatment_panel.data[!,s.treatment_panel.id_var]))), " unique values")
+    println(io, "\tTreatment ID: ",string(s.treatment_panel.treatment[1]))
 
     if isfitted(s)
       println(io, "\tModel is fitted")
