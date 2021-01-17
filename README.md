@@ -3,6 +3,12 @@ Julia package for synthetic control methods, implementing the technique describe
 
 The package is at alpha stage - there's a bare bones implementation that can be used to obtain results and plot them, as well as an implementation of a placebo test, but no formal inference.
 
+UPDATE 17/1/2020 - the package is currently being rewritten with a more generic interface for
+specifying treatment patterns that will simplify the implementation of different types of
+synthetic control estimators; the main functionality is currently still operational, but docs
+are being rewritten. Refer to the tests for a bare bones guide on how to fit & plot a SCM
+in the current implementation
+
 ## Installation
 
 The package is currently unregistered, installation therefore works directly
