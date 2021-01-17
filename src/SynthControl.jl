@@ -3,7 +3,7 @@ module SynthControl
 using Dates, DataFrames, Optim, LinearAlgebra, RecipesBase, Parameters
 import CSV
 
-export TreatmentPanel SynthControlModel, fit!, isfitted, load_brexit
+export TreatmentPanel, SynthControlModel, fit!, isfitted, load_brexit
 
 abstract type SCM end
 
