@@ -3,7 +3,7 @@ module SynthControl
 using Dates, DataFrames, Optim, LinearAlgebra, RecipesBase, Parameters
 import CSV
 
-export TreatmentPanel, SynthControlModel, fit!, isfitted, load_brexit
+export TreatmentPanel, SynthControlModel, fit!, isfitted, load_brexit, load_germany
 
 abstract type SCM end
 
@@ -304,6 +304,10 @@ https://www.cer.eu/insights/cost-brexit-june-2019)
 """
 function load_brexit()
     CSV.read(joinpath(dirname(@__FILE__),"..","data","brexit.csv"), DataFrame)
+end
+
+function load_germany()
+    CSV.read(joinpath(dirname(@__FILE__),"..","data","Germany.csv"), DataFrame)
 end
 
 
