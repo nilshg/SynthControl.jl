@@ -39,13 +39,16 @@ Currently, only single treatment unit and continuous treatment is supported.
     id_var::Union{Symbol, String}
     t_var::Union{Symbol, String}
     treatment::Union{Pair{Union{Symbol, String}, Union{Date, Int64}}}
-    y_pre::Vector{Float64}
-    y_post::Vector{Float64}
-    x_pre::Matrix{Float64}
-    x_post::Matrix{Float64}
-    no_comps::Int64
-    no_treatment_periods::Int64
-    no_pretreatment_periods::Int64
+    y₁₀::Vector{Float64} # (T₀ × 1) vector of pretreatment outcomes for treated unit
+    y₁₁::Vector{Float64} # (T-T₀ × 1) vector of posttreatment outcomes for treated unit
+    yⱼ₀::Matrix{Float64} # (T₀ × J) matrix of pretreatment outcomes for donor pool
+    yⱼ₁::Matrix{Float64} # (T-T₀ × J) matrix of posttreatment outcomes for donor pool
+    x₁₀::Union{Nothing, Vector{Float64}} # (k × 1) vector of predictors for treated unit
+    xⱼ₀::Union{Nothing, Matrix{Float64}} # (k × J) matrix of predictors for donor pool
+    predictors::Union{Nothing, Union{Symbol, String}, Vector{Union{Symbol, String}}}
+    J::Int64
+    T₁::Int64
+    T₀::Int64
     comp_labels::Vector{Union{Symbol, String}}
 end
 
@@ -96,44 +99,54 @@ function check_tp(outcome, id_var, t_var, treatment, data)
 end
 
 function TreatmentPanel(treatment::T, data;
-                        outcome = nothing, id_var = nothing, t_var = nothing) where T <: Pair
+                        outcome = nothing, id_var = nothing, t_var = nothing,
+                        predictors = nothing) where T <: Pair
 
     check_tp(outcome, id_var, t_var, treatment, data)
 
     treatᵢ, treatₜ = treatment
 
-    y_pre = data[(data[!, id_var] .== treatᵢ) .&
+    y₁₀ = data[(data[!, id_var] .== treatᵢ) .&
                (data[!, t_var] .< treatₜ), outcome]
-    xs_pre = data[(data[!, id_var] .!= treatᵢ) .&
+    yⱼ₀ = data[(data[!, id_var] .!= treatᵢ) .&
                (data[!, t_var] .< treatₜ), outcome]
 
-    y_post = data[(data[!, id_var] .== treatᵢ) .&
+    y₁₁ = data[(data[!, id_var] .== treatᵢ) .&
                (data[!, t_var] .>= treatₜ), outcome]
-    xs_post = data[(data[!, id_var] .!= treatᵢ) .&
+    yⱼ₁ = data[(data[!, id_var] .!= treatᵢ) .&
                (data[!, t_var] .>= treatₜ), outcome]
 
-    no_treatment_periods = length(unique(data[data[!, t_var] .>= treatₜ, t_var]))
-    no_pretreatment_periods = length(y_pre)
-    no_comps = length(unique(data[data[!, id_var] .!= treatᵢ, id_var]))
+    T₁ = length(unique(data[data[!, t_var] .>= treatₜ, t_var]))
+    T₀ = length(y₁₀)
+    J = length(unique(data[data[!, id_var] .!= treatᵢ, id_var]))
 
     comp_labels = unique(data[data[!, id_var] .!= treatᵢ, id_var])
 
-    TreatmentPanel(
-        data,
-        outcome,
-        id_var,
-        t_var,
-        treatment,
-        y_pre,
-        y_post,
-        reshape(xs_pre, no_comps, no_pretreatment_periods),
-        reshape(xs_post, no_comps, no_treatment_periods),
-        no_comps,
-        no_treatment_periods,
-        no_pretreatment_periods,
-        comp_labels
-    )
+    if predictors == nothing
+        TreatmentPanel(
+            data,
+            outcome,
+            id_var,
+            t_var,
+            treatment,
+            y₁₀,
+            y₁₁,
+            reshape(yⱼ₀, J, T₀),
+            reshape(yⱼ₁, J, T₁),
+            nothing,
+            nothing,
+            nothing,
+            J,
+            T₁,
+            T₀,
+            comp_labels
+        )
+    else
+        "Not yet implemented"
+    end
 end
+
+
 
 
 """
@@ -149,21 +162,21 @@ outcome of the treated unit.
 mutable struct SynthControlModel <: SCM
     treatment_panel::TreatmentPanel
     w::Vector{Float64} # Vector of weights
-    ŷ::Vector{Float64} # Vector of post-treatment predicted outcomes for synthetic unit
-    δ̂::Vector{Float64} # Vector of estimated treatmet impacts
+    ŷ₁::Vector{Float64} # Vector of post-treatment predicted outcomes for synthetic unit
+    τ̂::Vector{Float64} # Vector of estimated treatmet impacts
     p_test_res::Array{Float64, 2} # Matrix of outcomes for untreated under placebo
 end
 
 
 function SynthControlModel(tp::TreatmentPanel)
-    @unpack y_pre, y_post, no_comps, no_treatment_periods = tp
+    @unpack y₁₀, y₁₁, J, T₁ = tp
 
-    ŷ = zeros(length(y_pre) + length(y_post))
-    w = zeros(no_comps)
-    δ̂ = zeros(no_treatment_periods)
-    p_test_res = zeros(length(ŷ), no_comps)
+    ŷ₁ = zeros(length(y₁₀) + length(y₁₁))
+    w = zeros(J)
+    τ̂ = zeros(T₁)
+    p_test_res = zeros(length(ŷ₁), J)
 
-    SynthControlModel(tp, w, ŷ, δ̂, p_test_res)
+    SynthControlModel(tp, w, ŷ₁, τ̂, p_test_res)
 end
 
 
@@ -204,38 +217,40 @@ used as the basis for inference.
 """
 function fit!(s::SynthControlModel; placebo_test = false)
 
-    @unpack y_pre, y_post, x_pre, x_post, no_comps, no_pretreatment_periods = s.treatment_panel
+    isnothing(s.treatment_panel.predictors) || "Predictors currently not implemented"
+
+    @unpack y₁₀, y₁₁, yⱼ₀, yⱼ₁, J, T₀ = s.treatment_panel
 
     # Objective function
     # Hat tip to Mathieu Tanneau who suggested switching to a quadratic formulation
-    obj(w) = dot(y_pre .- vec(w'*x_pre), y_pre .- vec(w'*x_pre)) + 1e6*(1.0 - sum(w))^2
+    obj(w) = dot(y₁₀ .- vec(w'*yⱼ₀), y₁₀ .- vec(w'*yⱼ₀)) + 1e6*(1.0 - sum(w))^2
 
     # Initial condition and bounds
-    initial = [1/no_comps for _ in 1:no_comps]
-    lower = zeros(no_comps)
-    upper = ones(no_comps)
+    initial = [1/J for _ in 1:J]
+    lower = zeros(J)
+    upper = ones(J)
 
     # Get weights through optimization
     res = optimize(obj, lower, upper, initial)
     s.w = res.minimizer
 
     # Get estimates
-    s.ŷ = vec(s.w'*[x_pre x_post])
-    s.δ̂ = ([y_pre; y_post] .- s.ŷ)[no_pretreatment_periods+1:end]
+    s.ŷ₁ = vec(s.w'*[yⱼ₀ yⱼ₁])
+    s.τ̂ = ([y₁₀; y₁₁] .- s.ŷ₁)[T₀+1:end]
 
     if placebo_test
         placebos = unique(s.treatment_panel.data[(s.treatment_panel.data[!,s.pid] .!= s.treat_id), s.pid])
         p = deepcopy(s)
 
-        for n ∈ 1:p.no_comps
+        for n ∈ 1:p.J
             # change treatment ID
             p.treat_id = placebos[n]
             # change outcome data
             p.y = p.data[p.data[!, p.pid] .== p.treat_id, p.outcome]
             p.comps = collect(reshape(p.data[(p.data[!,p.pid] .!= p.treat_id) .& (p.data[!,p.tid].<p.treat_t), p.outcome],
-                    p.no_comps, p.no_pretreat_t)')
+                    p.J, p.no_pretreat_t)')
             fit!(p)
-            s.p_test_res[:, n] = p.y .- p.ŷ
+            s.p_test_res[:, n] = p.y .- p.ŷ₁
         end
     end
     return s
@@ -245,42 +260,41 @@ end
 @recipe function f(s::SynthControlModel; kind = "overall")
     legend --> :topleft
 
-    if kind == "overall"
+    if kind == "weights"
+
+        wp = sort(DataFrame(comp = s.treatment_panel.comp_labels,
+                  weight = s.w), :weight, rev = true)
+
+        @series begin
+            seriestype := :bar
+            label --> ""
+            xguide --> "Donor"
+            yguide --> "Weight"
+            linecolor := "white"
+            wp[wp.weight .> 0.05, :comp], wp[wp.weight .> 0.05, :weight]
+        end
+
+    elseif kind == "overall"
 
         @series begin
             label --> s.treatment_panel.treatment[1]
-            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), [s.treatment_panel.y_pre; s.treatment_panel.y_post]
+            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), [s.treatment_panel.y₁₀; s.treatment_panel.y₁₁]
         end
 
         @series begin
             label --> "Control"
-            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), s.ŷ
+            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), s.ŷ₁
         end
 
         @series begin
             label --> "Impact"
-            seriestype := :bar
-            seriesalpha := 0.5
-            linecolor := "white"
-            seriescolor := "darkgreen"
+            seriestype --> :bar
+            seriesalpha --> 0.5
+            linecolor --> "white"
             sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var]))[findfirst(x -> x >= s.treatment_panel.treatment[2],
-                                    sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var]))):end], s.δ̂
+                                    sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var]))):end], s.τ̂
         end
 
-    elseif kind == "diffplot"
-        @series begin
-            label --> s.treatment_panel.treatment[1]
-            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), [s.treatment_panel.y_pre; s.treatment_panel.y_post] .- s.ŷ
-        end
-
-        @series begin
-            label --> ""
-            seriestype := :scatter
-            seriescolor := 1
-            markerstrokecolor := "white"
-            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), [s.treatment_panel.y_pre; s.treatment_panel.y_post] .- s.ŷ
-        end
-    end
         @series begin
             label --> "Intervention"
             seriestype := :vline
@@ -290,6 +304,31 @@ end
             yguide := "Outcome"
             [s.treatment_panel.treatment[2]]
         end
+
+    elseif kind == "diffplot"
+        @series begin
+            label --> s.treatment_panel.treatment[1]
+            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), [s.treatment_panel.y₁₀; s.treatment_panel.y₁₁] .- s.ŷ₁
+        end
+
+        @series begin
+            label --> ""
+            seriestype := :scatter
+            seriescolor := 1
+            markerstrokecolor := "white"
+            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), [s.treatment_panel.y₁₀; s.treatment_panel.y₁₁] .- s.ŷ₁
+        end
+
+        @series begin
+            label --> "Intervention"
+            seriestype := :vline
+            linestyle := :dash
+            seriescolor := "black"
+            xguide := "Time"
+            yguide := "Outcome"
+            [s.treatment_panel.treatment[2]]
+        end
+    end
 
      nothing
 end
@@ -301,6 +340,12 @@ end
 Returns a `DataFrame` with quarterly GDP data on 30 OECD countries, borrowed from the
 analysis of the effect of Brexit on UK GDP undertaken by the [Centre for European Reform](
 https://www.cer.eu/insights/cost-brexit-june-2019)
+
+The `TreatmentPanel` for Brexit should be specified as
+```
+TreatmentPanel("United Kingdom" => Date(2016, 7, 1), df;
+                       outcome = :realgdp, id_var = :country, t_var = :quarter)
+```
 """
 function load_brexit()
     CSV.read(joinpath(dirname(@__FILE__),"..","data","brexit.csv"), DataFrame)
@@ -337,7 +382,7 @@ function show(io::IO, ::MIME"text/plain", s::SynthControlModel)
 
     if isfitted(s)
       println(io, "\tModel is fitted")
-      println(io, "\tImpact estimates: ",round.(s.δ̂, digits=3))
+      println(io, "\tImpact estimates: ",round.(s.τ̂, digits=3))
     else
       println(io, "\n\tModel is not fitted")
     end
