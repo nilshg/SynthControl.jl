@@ -12,8 +12,8 @@ outcome of the treated unit.
 
 """
 
-mutable struct SynthControlModel <: SCM
-    treatment_panel::TreatmentPanel
+mutable struct SynthControlModel{T1} <: SCM
+    treatment_panel::T1
     w::Vector{Float64} # Vector of weights
     ŷ₁::Vector{Float64} # Vector of post-treatment predicted outcomes for synthetic unit
     τ̂::Vector{Float64} # Vector of estimated treatmet impacts
@@ -21,15 +21,15 @@ mutable struct SynthControlModel <: SCM
 end
 
 
-function SynthControlModel(tp::TreatmentPanel)
-    @unpack y₁₀, y₁₁, J, T₁ = tp
+function SynthControlModel(tp::BalancedPanel{TreatmentPanels.SingleUnitTreatment, S}) where S
+    @unpack Y, N, T, W = tp
 
-    ŷ₁ = zeros(length(y₁₀) + length(y₁₁))
-    w = zeros(J)
-    τ̂ = zeros(T₁)
-    p_test_res = zeros(length(ŷ₁), J)
+    ŷ₁ = zeros(N + T)
+    w = zeros(N - 1)
+    τ̂ = zeros(TreatmentPanels.length_T₁(tp))
+    p_test_res = zeros(length(ŷ₁), N - 1)
 
-    SynthControlModel(tp, w, ŷ₁, τ̂, p_test_res)
+    SynthControlModel{typeof(tp)}(tp, w, ŷ₁, τ̂, p_test_res)
 end
 
 
@@ -70,9 +70,16 @@ used as the basis for inference.
 """
 function fit!(s::SynthControlModel; placebo_test = false)
 
-    isnothing(s.treatment_panel.predictors) || "Predictors currently not implemented"
+    #!# TO DO: Check for covariates
+    #isnothing(s.treatment_panel.predictors) || "Predictors currently not implemented"
 
-    @unpack y₁₀, y₁₁, yⱼ₀, yⱼ₁, J, T₀ = s.treatment_panel
+    @unpack Y, W, N, T, ts, is = s.treatment_panel
+    T₀ = TreatmentPanels.length_T₀(s.treatment_panel)
+    y₁₀ = @view s.treatment_panel.Y[TreatmentPanels.treated_ids(s.treatment_panel), 1:T₀]
+    y₁₁ = @view s.treatment_panel.Y[TreatmentPanels.treated_ids(s.treatment_panel), T₀+1:end]
+    yⱼ₀ = @view s.treatment_panel.Y[Not(TreatmentPanels.treated_ids(s.treatment_panel)), 1:T₀]
+    yⱼ₁ = @view s.treatment_panel.Y[Not(TreatmentPanels.treated_ids(s.treatment_panel)), T₀+1:end]
+    J = s.treatment_panel.N - 1
 
     # Objective function
     # Hat tip to Mathieu Tanneau who suggested switching to a quadratic formulation
@@ -115,19 +122,14 @@ import Base.show
 
 function show(io::IO, ::MIME"text/plain", s::SynthControlModel)
 
-    println(io, "\nSynthetic Control Model")
-    println(io, "\tOutcome variable: ", s.treatment_panel.outcome)
-    println(io, "\tTime dimension: ",string(s.treatment_panel.t_var)," with ",
-            string(length(unique(s.treatment_panel.data[!,s.treatment_panel.t_var]))), " unique values")
-    println(io, "\tTreatment period: ", string(s.treatment_panel.treatment[2]))
-    println(io, "\tID variable: ",string(s.treatment_panel.id_var), " with ",
-            string(length(unique(s.treatment_panel.data[!,s.treatment_panel.id_var]))), " unique values")
-    println(io, "\tTreatment ID: ",string(s.treatment_panel.treatment[1]))
+    println(io, "\nSynthetic Control Model\n")
+    println(io, "Treatment panel:")
+    display(s.treatment_panel)
 
     if isfitted(s)
       println(io, "\tModel is fitted")
       println(io, "\tImpact estimates: ",round.(s.τ̂, digits=3))
     else
-      println(io, "\n\tModel is not fitted")
+      println(io, "\nModel is not fitted")
     end
 end

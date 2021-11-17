@@ -1,12 +1,16 @@
 
 # Define plotting recipe
 @recipe function f(s::SynthControlModel; kind = "overall")
+    
+    tp = s.treatment_panel
+    
     legend --> :topleft
 
     if kind == "weights"
 
-        wp = sort(DataFrame(comp = s.treatment_panel.comp_labels,
-                  weight = s.w), :weight, rev = true)
+        wp = sort(DataFrame(comp = tp.is[Not(TreatmentPanels.treated_ids(tp))], 
+                            weight = s.w), 
+                  :weight, rev = true)
 
         @series begin
             seriestype := :bar
@@ -20,13 +24,13 @@
     elseif kind == "overall"
 
         @series begin
-            label --> s.treatment_panel.treatment[1]
-            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), [s.treatment_panel.y₁₀; s.treatment_panel.y₁₁]
+            label --> TreatmentPanels.treated_labels(tp)
+            tp.ts, tp.Y[TreatmentPanels.treated_ids(tp), :]
         end
 
         @series begin
             label --> "Control"
-            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), s.ŷ₁
+            tp.ts, s.ŷ₁
         end
 
         @series begin
@@ -34,8 +38,7 @@
             seriestype --> :bar
             seriesalpha --> 0.5
             linecolor --> "white"
-            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var]))[findfirst(x -> x >= s.treatment_panel.treatment[2],
-                                    sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var]))):end], s.τ̂
+            tp.ts[TreatmentPanels.length_T₀(tp):end], s.τ̂
         end
 
         @series begin
@@ -45,13 +48,13 @@
             seriescolor := "black"
             xguide := "Time"
             yguide := "Outcome"
-            [s.treatment_panel.treatment[2]]
+            [tp.ts[TreatmentPanels.length_T₀(tp)]]
         end
 
     elseif kind == "diffplot"
         @series begin
-            label --> s.treatment_panel.treatment[1]
-            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), [s.treatment_panel.y₁₀; s.treatment_panel.y₁₁] .- s.ŷ₁
+            label --> tp.treatment[1]
+            sort!(unique(tp.data[!, tp.t_var])), [tp.y₁₀; tp.y₁₁] .- s.ŷ₁
         end
 
         @series begin
@@ -59,7 +62,7 @@
             seriestype := :scatter
             seriescolor := 1
             markerstrokecolor := "white"
-            sort!(unique(s.treatment_panel.data[!, s.treatment_panel.t_var])), [s.treatment_panel.y₁₀; s.treatment_panel.y₁₁] .- s.ŷ₁
+            sort!(unique(tp.data[!, tp.t_var])), [tp.y₁₀; tp.y₁₁] .- s.ŷ₁
         end
 
         @series begin
@@ -69,7 +72,7 @@
             seriescolor := "black"
             xguide := "Time"
             yguide := "Outcome"
-            [s.treatment_panel.treatment[2]]
+            [tp.treatment[2]]
         end
     end
 

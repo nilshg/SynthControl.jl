@@ -14,18 +14,31 @@ TreatmentPanel("United Kingdom" => Date(2016, 7, 1), df;
 ```
 """
 function load_brexit()
-    CSV.read(joinpath(dirname(@__FILE__),"..","data","brexit.csv"), DataFrame)
+    CSV.read(joinpath(dirname(@__FILE__),"..","data","brexit.csv"), DataFrame; stringtype = String)
+end
+
+function load_brexit_panel()
+    df_brexit = load_brexit()
+    BalancedPanel(df_brexit, "United Kingdom" => Date(2016, 7, 1); 
+        id_var = :country, t_var = :quarter, outcome_var = :realgdp)
 end
 
 function load_germany()
-    CSV.read(joinpath(dirname(@__FILE__),"..","data","germany.csv"), DataFrame)
+    CSV.read(joinpath(dirname(@__FILE__),"..","data","germany.csv"), DataFrame; stringtype = String)
 end
 
 function load_basque()
-    CSV.read(joinpath(dirname(@__FILE__),"..","data","basque.csv"), DataFrame)
+    CSV.read(joinpath(dirname(@__FILE__),"..","data","basque.csv"), DataFrame; 
+    stringtype = String, missingstring = "NA")
 end
 
+function load_basque_panel()
+    df_basque = load_basque()
+    BalancedPanel(df_basque, "Basque Country (Pais Vasco)" => 1970;
+        id_var = "regionname", t_var = "year", outcome_var = "gdpcap")
+end
 
 function load_smoking()
-    CSV.read(joinpath(dirname(@__FILE__),"..","data","smoking.csv"), DataFrame)
+    CSV.read(joinpath(dirname(@__FILE__),"..","data","smoking.csv"), DataFrame; 
+    stringtype = String, missingstring = "NA")
 end
