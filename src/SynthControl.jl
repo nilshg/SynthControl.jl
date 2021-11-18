@@ -8,7 +8,6 @@ using Reexport
 
 export SynthControlModel, fit!, isfitted, load_brexit, load_germany, load_basque, load_smoking
 
-include("treatmentpanel.jl")
 include("synthcontrolmodels.jl")
 include("plotrecipes.jl")
 include("load_data.jl")
