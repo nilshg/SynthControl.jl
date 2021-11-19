@@ -1,3 +1,5 @@
+[![CI](https://github.com/nilshg/SynthControl.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/nilshg/SynthControl.jl/actions/workflows/ci.yml)
+
 # SynthControl.jl
 Julia package for synthetic control methods
 
