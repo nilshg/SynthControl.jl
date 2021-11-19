@@ -1,21 +1,16 @@
 # SynthControl.jl
-Julia package for synthetic control methods, implementing the technique described in [Abadie et al. (2010)](https://economics.mit.edu/files/11859)
+Julia package for synthetic control methods
 
-The package is at alpha stage - there's a bare bones implementation that can be used to obtain results and plot them, as well as an implementation of a placebo test, but no formal inference.
-
-UPDATE 17/1/2020 - the package is currently being rewritten with a more generic interface for
-specifying treatment patterns that will simplify the implementation of different types of
-synthetic control estimators; the main functionality is currently still operational, but docs
-are being rewritten. Refer to the tests for a bare bones guide on how to fit & plot a SCM
-in the current implementation
+The package is currently at alpha stage - it currently offers a basic `SyntheticControlModel`
+implementation which uses all pre-treatment periods and no other covariates in constructing the
+control unit. 
 
 ## Installation
 
-The package is currently unregistered, installation therefore works directly
-from the repo:
+The package is registered in the general registry, installation therefore works through the Pkg REPL
 
 ```
-pkg> add "https://github.com/nilshg/SynthControl.jl"
+pkg> add SynthControl
 ```
 
 ## Usage
@@ -42,25 +37,38 @@ julia> df = load_brexit()
 ```
 
 The package defines a `SynthControlModel` type, instances of which can be constructed
-from a `DataFrame`, specifying the column holding the outcome variable of interest,
-the time and group (ID) dimension, the treatment start period and the treated
-group/observation. Currently, only one treatment unit can be specified.
+from a `TreatmentPanel` object from the package
+[`TreatmentPanels`](https://github.com/nilshg/TreatmentPanels.jl). The `TreatmentPanel` is
+constructed from a `DataFrame` and a specification of treatment assignment.
 
 The example data set includes quarterly GDP for a number of OECD countries, and
 we are interested in estimating the impact of the Brexit vote in Q2 2016 on GDP
 in the UK:
 
 ```
-julia> s_model = SynthControlModel(df, :realgdp, :country, :quarter, "United Kingdom", Date(2016, 7, 1))
+julia> bp = BalancedPanel(df, "United Kingdom" => Date(2016, 7, 1); id_var = :country, t_var = :quarter, outcome_var = :realgdp)
+Balanced Panel - single unit, single continuous treatment
+    Treated unit: ["United Kingdom"]
+    Number of untreated units: 22
+    First treatment period: [Date("2016-07-01")]
+    Number of pretreatment periods: [30]
+    Number of treatment periods: [9]
+
+
+julia> s = SynthControlModel(bp)
 
 Synthetic Control Model
-    Outcome variable: realgdp
-    Time dimension: quarter with 39 unique values
-    Treatment period: 2016-07-01
-    ID variable: country with 23 unique values
-    Treatment ID: United Kingdom
 
-    Model is not fitted
+Treatment panel:
+Balanced Panel - single unit, single continuous treatment
+    Treated unit: ["United Kingdom"]
+    Number of untreated units: 22
+    First treatment period: [Date("2016-07-01")]
+    Number of pretreatment periods: [30]
+    Number of treatment periods: [9]
+
+
+Model is not fitted
 ```
 
 The output indicates that the model is not fitted, that is we have at this stage
@@ -68,16 +76,20 @@ only defined the basic model structure. We can fit the model using the `fit!`
 function, which will modify our `SynthControlModel` in place:
 
 ```
-julia> fit!(s_model)
+julia> fit!(s)
 
 Synthetic Control Model
-    Outcome variable: realgdp
-    Time dimension: quarter with 39 unique values
-    Treatment period: 2016-07-01
-    ID variable: country with 23 unique values
-    Treatment ID: United Kingdom
-    Model is fitted
-    Impact estimates: [-0.712, -0.525, -0.426, -0.753, -1.218, -1.451, -1.816, -2.223, -1.761]
+
+Treatment panel:
+Balanced Panel - single unit, single continuous treatment
+    Treated unit: ["United Kingdom"]
+    Number of untreated units: 22
+    First treatment period: [Date("2016-07-01")]
+    Number of pretreatment periods: [30]
+    Number of treatment periods: [9]
+
+        Model is fitted
+        Impact estimates: [-0.54, -0.31, -0.206, -0.732, -1.241, -1.482, -1.818, -2.327, -1.994]
 ```
 
 The reported impact estimates are the difference between observed outcome variable
@@ -94,12 +106,3 @@ julia> using Plots
 julia> plot(s_model)
 ```
 ![Sample output](synthcontrol.png)
-
-To do:
-* Inference
-* Matching on specific covariates
-* Multiple treatment units
-* Documentation
-* Expand testset
-* Consider dropping DataFrames dependency in favour of Tables
-* Include [Augmented Synthetic Control](https://eml.berkeley.edu/~jrothst/workingpapers/BMFR_Synth_Nov_2018.pdf)

@@ -26,7 +26,7 @@ function SynthControlModel(tp::BalancedPanel{TreatmentPanels.SingleUnitTreatment
 
     ŷ₁ = zeros(N + T)
     w = zeros(N - 1)
-    τ̂ = zeros(TreatmentPanels.length_T₁(tp))
+    τ̂ = zeros(only(TreatmentPanels.length_T₁(tp)))
     p_test_res = zeros(length(ŷ₁), N - 1)
 
     SynthControlModel{typeof(tp)}(tp, w, ŷ₁, τ̂, p_test_res)
@@ -70,13 +70,18 @@ used as the basis for inference.
 """
 function fit!(s::SynthControlModel; placebo_test = false)
 
+    # Make sure that we have a single continuous treatment
+    s isa SynthControlModel{BalancedPanel{TreatmentPanels.SingleUnitTreatment, TreatmentPanels.ContinuousTreatment}} ||
+        throw("fit! currently only supports a single continuously treated unit")
+
     #!# TO DO: Check for covariates
     #isnothing(s.treatment_panel.predictors) || "Predictors currently not implemented"
 
     @unpack Y, W, N, T, ts, is = s.treatment_panel
-    T₀ = TreatmentPanels.length_T₀(s.treatment_panel)
-    y₁₀ = @view s.treatment_panel.Y[TreatmentPanels.treated_ids(s.treatment_panel), 1:T₀]
-    y₁₁ = @view s.treatment_panel.Y[TreatmentPanels.treated_ids(s.treatment_panel), T₀+1:end]
+    #!# Consider how this has to change for single vs multi treatments
+    T₀ = only(TreatmentPanels.length_T₀(s.treatment_panel))
+    y₁₀ = vec(@view s.treatment_panel.Y[TreatmentPanels.treated_ids(s.treatment_panel), 1:T₀])
+    y₁₁ = vec(@view s.treatment_panel.Y[TreatmentPanels.treated_ids(s.treatment_panel), T₀+1:end])
     yⱼ₀ = @view s.treatment_panel.Y[Not(TreatmentPanels.treated_ids(s.treatment_panel)), 1:T₀]
     yⱼ₁ = @view s.treatment_panel.Y[Not(TreatmentPanels.treated_ids(s.treatment_panel)), T₀+1:end]
     J = s.treatment_panel.N - 1

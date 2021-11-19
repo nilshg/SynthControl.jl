@@ -25,7 +25,7 @@
 
         @series begin
             label --> TreatmentPanels.treated_labels(tp)
-            tp.ts, tp.Y[TreatmentPanels.treated_ids(tp), :]
+            tp.ts, vec(tp.Y[TreatmentPanels.treated_ids(tp), :])
         end
 
         @series begin
@@ -38,7 +38,7 @@
             seriestype --> :bar
             seriesalpha --> 0.5
             linecolor --> "white"
-            tp.ts[TreatmentPanels.length_T₀(tp):end], s.τ̂
+            tp.ts[only(TreatmentPanels.length_T₀(tp)):end], s.τ̂
         end
 
         @series begin
@@ -48,7 +48,7 @@
             seriescolor := "black"
             xguide := "Time"
             yguide := "Outcome"
-            [tp.ts[TreatmentPanels.length_T₀(tp)]]
+            [tp.ts[only(TreatmentPanels.length_T₀(tp))]]
         end
 
     elseif kind == "diffplot"
