@@ -24,10 +24,10 @@ end
 function SynthControlModel(tp::BalancedPanel{TreatmentPanels.SingleUnitTreatment, S}) where S
     @unpack Y, N, T, W = tp
 
-    ŷ₁ = zeros(N + T)
+    ŷ₁ = zeros(T)
     w = zeros(N - 1)
-    τ̂ = zeros(only(TreatmentPanels.length_T₁(tp)))
-    p_test_res = zeros(length(ŷ₁), N - 1)
+    τ̂ = zeros(length_T₁(tp))
+    p_test_res = zeros(N - 1, T)
 
     SynthControlModel{typeof(tp)}(tp, w, ŷ₁, τ̂, p_test_res)
 end
@@ -76,15 +76,13 @@ function fit!(s::SynthControlModel; placebo_test = false)
 
     #!# TO DO: Check for covariates
     #isnothing(s.treatment_panel.predictors) || "Predictors currently not implemented"
-
-    @unpack Y, W, N, T, ts, is = s.treatment_panel
+    
+    tp = s.treatment_panel
+    @unpack N, T, ts, is = tp
     #!# Consider how this has to change for single vs multi treatments
-    T₀ = only(TreatmentPanels.length_T₀(s.treatment_panel))
-    y₁₀ = vec(@view s.treatment_panel.Y[TreatmentPanels.treated_ids(s.treatment_panel), 1:T₀])
-    y₁₁ = vec(@view s.treatment_panel.Y[TreatmentPanels.treated_ids(s.treatment_panel), T₀+1:end])
-    yⱼ₀ = @view s.treatment_panel.Y[Not(TreatmentPanels.treated_ids(s.treatment_panel)), 1:T₀]
-    yⱼ₁ = @view s.treatment_panel.Y[Not(TreatmentPanels.treated_ids(s.treatment_panel)), T₀+1:end]
-    J = s.treatment_panel.N - 1
+    T₀ = length_T₀(tp)
+    y₁₀, y₁₁, yⱼ₀, yⱼ₁ = decompose_y(tp)
+    J = tp.N - 1
 
     # Objective function
     # Hat tip to Mathieu Tanneau who suggested switching to a quadratic formulation
@@ -104,20 +102,31 @@ function fit!(s::SynthControlModel; placebo_test = false)
     s.τ̂ = ([y₁₀; y₁₁] .- s.ŷ₁)[T₀+1:end]
 
     if placebo_test
-        placebos = unique(s.treatment_panel.data[(s.treatment_panel.data[!,s.pid] .!= s.treat_id), s.pid])
-        p = deepcopy(s)
 
-        for n ∈ 1:p.J
-            # change treatment ID
-            p.treat_id = placebos[n]
-            # change outcome data
-            p.y = p.data[p.data[!, p.pid] .== p.treat_id, p.outcome]
-            p.comps = collect(reshape(p.data[(p.data[!,p.pid] .!= p.treat_id) .& (p.data[!,p.tid].<p.treat_t), p.outcome],
-                    p.J, p.no_pretreat_t)')
-            fit!(p)
-            s.p_test_res[:, n] = p.y .- p.ŷ₁
+        initial = [1/(J-1) for _ in 1:(J-1)]
+        lower = zeros(J-1)
+        upper = ones(J-1)
+
+        for p ∈ 1:J
+            p_y₁₀ = vec(@view yⱼ₀[p, :])
+            p_y₁₁ = vec(@view yⱼ₁[p, :])
+            p_yⱼ₀ = @view yⱼ₀[Not(p), :]
+            p_yⱼ₁ = @view yⱼ₁[Not(p), :]
+            @show size.([p_y₁₀, p_y₁₁, p_yⱼ₀, p_yⱼ₁])
+
+            p_obj(w) = dot(p_y₁₀ .- vec(w'*p_yⱼ₀), p_y₁₀ .- vec(w'*p_yⱼ₀)) + 1e6*(1.0 - sum(w))^2
+            
+            # Get weights through optimization
+            res = optimize(p_obj, lower, upper, initial)
+            p_w = res.minimizer
+            @show size(p_w), size([p_yⱼ₀ p_yⱼ₁])
+            
+            # Get estimates
+            p_ŷ₁ = vec(p_w'*[p_yⱼ₀ p_yⱼ₁])
+            s.p_test_res[p, :] = [p_y₁₀; p_y₁₁] .- p_ŷ₁
         end
     end
+
     return s
 end
 

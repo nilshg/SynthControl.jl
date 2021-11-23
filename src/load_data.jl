@@ -27,6 +27,12 @@ function load_germany()
     CSV.read(joinpath(dirname(@__FILE__),"..","data","germany.csv"), DataFrame; stringtype = String)
 end
 
+function load_germany_panel()
+    df_germany = load_germany()
+    BalancedPanel(df_germany, "West Germany" => 1990; 
+        id_var = "country", t_var = "year", outcome_var = "gdp")
+end
+
 function load_basque()
     CSV.read(joinpath(dirname(@__FILE__),"..","data","basque.csv"), DataFrame; 
     stringtype = String, missingstring = "NA")

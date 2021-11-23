@@ -1,7 +1,7 @@
 name = "SynthControl"
 uuid = "a73a6d50-3b99-11e9-2e1c-6f5007f3555d"
 authors = ["Nils <nilshg@hotmail.com>"]
-version = "0.1.1"
+version = "0.2.0"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -21,7 +21,7 @@ Optim = "1"
 Parameters = "0.12"
 RecipesBase = "1"
 Reexport = "1"
-TreatmentPanels = "0.1"
+TreatmentPanels = "0.2"
 julia = "1"
 
 [extras]
