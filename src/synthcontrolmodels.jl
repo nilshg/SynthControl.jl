@@ -86,7 +86,10 @@ function fit!(s::SynthControlModel; placebo_test = false)
 
     # Objective function
     # Hat tip to Mathieu Tanneau who suggested switching to a quadratic formulation
-    obj(w) = dot(y₁₀ .- vec(w'*yⱼ₀), y₁₀ .- vec(w'*yⱼ₀)) + 1e6*(1.0 - sum(w))^2
+    # !# Check why yⱼ₀ transpose is needed - is this consistent with mathematical formulation of
+    # model? Appears so, the notation for y₁₀ based on the outcome matrix and x₀ based on a vector 
+    # of covariates are incompatible 
+    obj(w) = (y₁₀ .- yⱼ₀'w)'*(y₁₀ .- yⱼ₀'w) + 1e6(1.0 -sum(w))^2
 
     # Initial condition and bounds
     initial = [1/J for _ in 1:J]

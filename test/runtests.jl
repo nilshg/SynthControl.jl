@@ -27,3 +27,26 @@ using SynthControl, TreatmentPanels, DataFrames, Dates
   @test isfitted(s)
 
 end
+
+
+@testset "Data sets" begin
+
+  df = load_germany()
+  @test only(df[df.country .== "USA" .&& df.year .== 1961, :gdp]) == 2929
+
+  bp = load_germany_panel()
+  @test typeof(bp) <: BalancedPanel
+
+  df = load_basque()
+  @test only(df[df.regionno .== 1 .&& df.year .== 1957, :gdpcap]) == 2.60361314875437
+
+  bp = load_basque_panel()
+  @test typeof(bp) <: BalancedPanel
+
+  df = load_brexit()
+  @test only(df[df.country .== "Australia" .&& df.quarter .== Date(2009, 1, 1), :realgdp]) == 1.04
+
+  bp = load_brexit_panel()
+  @test typeof(bp) <: BalancedPanel
+
+end
