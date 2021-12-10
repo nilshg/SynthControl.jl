@@ -3,7 +3,7 @@ abstract type SCM end
 
 
 """
-    SynthControlModel
+    SimpleSCM
 
 Takes in a `TreatmentPanel` and holds the results of calling the `fit!` method, optimal
 weights for comparator units and the resulting predicted outcome of the synthetic control
@@ -12,7 +12,7 @@ outcome of the treated unit.
 
 """
 
-mutable struct SynthControlModel{T1} <: SCM
+mutable struct SimpleSCM{T1} <: SCM
     treatment_panel::T1
     w::Vector{Float64} # Vector of weights
     ŷ₁::Vector{Float64} # Vector of post-treatment predicted outcomes for synthetic unit
@@ -21,28 +21,29 @@ mutable struct SynthControlModel{T1} <: SCM
 end
 
 
-function SynthControlModel(tp::BalancedPanel{TreatmentPanels.SingleUnitTreatment, S}) where S
-    @unpack Y, N, T, W = tp
+function SimpleSCM(tp::BalancedPanel{SingleUnitTreatment{Continuous}})
+    N = size(tp.Y, 1)
+    T = size(tp.Y, 2)
 
     ŷ₁ = zeros(T)
     w = zeros(N - 1)
     τ̂ = zeros(length_T₁(tp))
     p_test_res = zeros(N - 1, T)
 
-    SynthControlModel{typeof(tp)}(tp, w, ŷ₁, τ̂, p_test_res)
+    SimpleSCM{typeof(tp)}(tp, w, ŷ₁, τ̂, p_test_res)
 end
 
 
 """
-isfitted(s::SynthControlModel)
+isfitted(s::SimpleSCM)
 
-Check whether the `SynthControlModel` object `s` has been fitted.
+Check whether the `SimpleSCM` object `s` has been fitted.
 
 # Examples
 ```julia-repl
 julia> df = load_brexit();
 
-julia> s = SynthControlModel(df, :country, :dateid, :realgdp, 86, "United Kingdom");
+julia> s = SimpleSCM(df, :country, :dateid, :realgdp, 86, "United Kingdom");
 
 julia> isfitted(s)
 false
@@ -54,12 +55,12 @@ true
 
 ```
 """
-isfitted(s::SynthControlModel) = sum(s.w) ≈ 0.0 ? false : true
+isfitted(s::SimpleSCM) = sum(s.w) ≈ 0.0 ? false : true
 
 """
-    fit!(s::SynthControlModel; placebo_test = false)
+    fit!(s::SimpleSCM; placebo_test = false)
 
-Fit the `SynthControlModel` `s` by finding the weights that minimize the distance between
+Fit the `SimpleSCM` `s` by finding the weights that minimize the distance between
 the pre-treatment outcomes for the observational unit of interest and the weighted average
 pre-treatment outcomes for unweighted units.
 
@@ -68,21 +69,21 @@ every non-treated unit in the data set as the treated unit in turn and estimatin
 treatment impact on this unit. Results are stored in the `p_test_res` field and can be
 used as the basis for inference.
 """
-function fit!(s::SynthControlModel; placebo_test = false)
+function fit!(s::SimpleSCM; placebo_test = false)
 
     # Make sure that we have a single continuous treatment
-    s isa SynthControlModel{BalancedPanel{TreatmentPanels.SingleUnitTreatment, TreatmentPanels.ContinuousTreatment}} ||
-        throw("fit! currently only supports a single continuously treated unit")
+    s isa SimpleSCM{BalancedPanel{SingleUnitTreatment{Continuous}}} ||
+        throw("SimpleSCM currently only supports a single continuously treated unit")
 
     #!# TO DO: Check for covariates
     #isnothing(s.treatment_panel.predictors) || "Predictors currently not implemented"
     
     tp = s.treatment_panel
-    @unpack N, T, ts, is = tp
+    
     #!# Consider how this has to change for single vs multi treatments
     T₀ = length_T₀(tp)
     y₁₀, y₁₁, yⱼ₀, yⱼ₁ = decompose_y(tp)
-    J = tp.N - 1
+    J = size(yⱼ₀, 1)
 
     # Objective function
     # Hat tip to Mathieu Tanneau who suggested switching to a quadratic formulation
@@ -137,7 +138,7 @@ end
 # Pretty printing
 import Base.show
 
-function show(io::IO, ::MIME"text/plain", s::SynthControlModel)
+function show(io::IO, ::MIME"text/plain", s::SimpleSCM)
 
     println(io, "\nSynthetic Control Model\n")
     println(io, "Treatment panel:")

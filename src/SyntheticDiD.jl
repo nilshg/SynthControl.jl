@@ -20,7 +20,7 @@ struct SyntheticDiD{T1}# <: SCM where T1
     se_τ̂::Vector{Float64}
 end
 
-function SyntheticDiD(x::BalancedPanel{SingleUnitTreatment, T2}) where T2
+function SyntheticDiD(x::BalancedPanel{SingleUnitTreatment{Continuous}})
     ω̂ = zeros(length(x.is) - 1)
     λ̂ = zeros(length_T₀(x))
     ŷ = zeros(size(x.Y, 2))
@@ -29,11 +29,7 @@ function SyntheticDiD(x::BalancedPanel{SingleUnitTreatment, T2}) where T2
     SyntheticDiD(x, ω̂, λ̂, ŷ, τ̂, se_τ̂)
 end
 
-#!# Probably change treatment type tree:
-#  SingleUnitTreatment
-#  
-#  MultiUnitTreatment{T} where 
-function fit!(x)#::SyntheticDiD{BalancedPanel{SingleUnitTreatment, T2}}) where T2 
+function fit!(x::SyntheticDiD{BalancedPanel{SingleUnitTreatment{Continuous}}})
 
     (;Y, W) = x.tp
     y₁₀, y₁₁, y₀₀, y₀₁ = decompose_y(x.tp)
@@ -74,15 +70,14 @@ function fit!(x)#::SyntheticDiD{BalancedPanel{SingleUnitTreatment, T2}}) where T
 
     ω̂₀ = res.minimizer[1]  #!# this is probably actually unused?
     ω̂ = res.minimizer[2:end]
+    x.ω̂ .= ω̂
     
-    x.ω̂ .= ω̂sd
-
     ## (3) Compute time weights λ̂
     # Note small regularization added as per footnote 3 of the paper
     function ℓₜ(λ)
         λ₀ = λ[1]; λ = @view λ[2:end]
         ȳ₀₁ = vec(sum(y₀₁, dims = 2) ./ size(y₀₁, 2)) # Average post-treatment outcome for control
-        (λ₀ .+ y₀₀*λ .- ȳ₀₁)'*(λ₀ .+ y₀₀*λ .- ȳ₀₁) + 1e12*(1.0 .- sum(λ))^2 + ζ^2*Nₖₒ*norm(λ) 
+        (λ₀ .+ y₀₀*λ .- ȳ₀₁)'*(λ₀ .+ y₀₀*λ .- ȳ₀₁) + 1e12*(1.0 .- sum(λ))^2 + ζ^2*Nₖₒ*norm(λ)
     end
     
     lower = [-Inf; fill(0.0, T₀)]
@@ -127,3 +122,5 @@ function fit!(x)#::SyntheticDiD{BalancedPanel{SingleUnitTreatment, T2}}) where T
     x.ŷ .= [y₁₀; ŷ₁₁]
 end
 
+
+#!# TO DO - show method for this type

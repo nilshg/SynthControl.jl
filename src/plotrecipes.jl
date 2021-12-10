@@ -1,6 +1,6 @@
 
 # Define plotting recipe
-@recipe function f(s::SynthControlModel; kind = "overall")
+@recipe function f(s::SimpleSCM; kind = "overall")
     
     tp = s.treatment_panel
     
@@ -8,7 +8,7 @@
 
     if kind == "weights"
 
-        wp = sort(DataFrame(comp = tp.is[Not(TreatmentPanels.treated_ids(tp))], 
+        wp = sort(DataFrame(comp = tp.is[Not(treated_ids(tp))], 
                             weight = s.w), 
                   :weight, rev = true)
 
@@ -24,8 +24,8 @@
     elseif kind == "overall"
 
         @series begin
-            label --> TreatmentPanels.treated_labels(tp)
-            tp.ts, vec(tp.Y[TreatmentPanels.treated_ids(tp), :])
+            label --> treated_labels(tp)
+            tp.ts, vec(tp.Y[treated_ids(tp), :])
         end
 
         @series begin
@@ -38,7 +38,7 @@
             seriestype --> :bar
             seriesalpha --> 0.5
             linecolor --> "white"
-            tp.ts[only(TreatmentPanels.length_T₀(tp)):end], s.τ̂
+            tp.ts[only(length_T₀(tp)):end], s.τ̂
         end
 
         @series begin
@@ -48,7 +48,7 @@
             seriescolor := "black"
             xguide := "Time"
             yguide := "Outcome"
-            [tp.ts[only(TreatmentPanels.length_T₀(tp))]]
+            [tp.ts[only(length_T₀(tp))]]
         end
 
     elseif kind == "diffplot"

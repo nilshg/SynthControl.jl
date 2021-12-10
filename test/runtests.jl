@@ -1,7 +1,7 @@
 using Test
 using SynthControl, TreatmentPanels, DataFrames, Dates
 
-@testset "Basic functionality" begin
+@testset "SimpleSCM" begin
 
   outcome_A = collect(range(1.0; stop = 3.0, length = 10))
   outcome_B = collect(range(2.0; stop = 1.0, length = 10))
@@ -16,9 +16,9 @@ using SynthControl, TreatmentPanels, DataFrames, Dates
     outcome_var = :value, id_var = :id, t_var = :time)
 
   # Test that BalancedPanel works
-  @test tp isa BalancedPanel{SingleUnitTreatment, ContinuousTreatment}
+  @test tp isa BalancedPanel{SingleUnitTreatment{Continuous}}
 
-  s = SynthControlModel(tp)
+  s = SimpleSCM(tp)
 
   @test !(isfitted(s))
 
@@ -26,6 +26,19 @@ using SynthControl, TreatmentPanels, DataFrames, Dates
 
   @test isfitted(s)
 
+end
+
+@testset "Synthetic Differences-in-Differences" begin
+
+  bp = load_germany_panel()
+
+  @test bp isa BalancedPanel{SingleUnitTreatment{Continuous}}
+
+  sdid_model = SyntheticDiD(bp)
+
+  fit!(sdid_model)
+
+  @test only(sdid_model.τ̂) ≈ -3121.95 atol=0.1
 end
 
 
