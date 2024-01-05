@@ -11,7 +11,7 @@
         wp = sort(DataFrame(comp = tp.is[Not(treated_ids(tp))], 
                             weight = s.w), 
                   :weight, rev = true)
-
+        
         @series begin
             seriestype := :bar
             label --> ""
@@ -53,8 +53,8 @@
 
     elseif kind == "diffplot"
         @series begin
-            label --> tp.treatment[1]
-            sort!(unique(tp.data[!, tp.t_var])), [tp.y₁₀; tp.y₁₁] .- s.ŷ₁
+            label --> ""
+            tp.ts, [get_y₁₀(tp); get_y₁₁(tp)] .- s.ŷ₁
         end
 
         @series begin
@@ -62,7 +62,7 @@
             seriestype := :scatter
             seriescolor := 1
             markerstrokecolor := "white"
-            sort!(unique(tp.data[!, tp.t_var])), [tp.y₁₀; tp.y₁₁] .- s.ŷ₁
+            tp.ts, [get_y₁₀(tp); get_y₁₁(tp)] .- s.ŷ₁
         end
 
         @series begin
@@ -71,8 +71,8 @@
             linestyle := :dash
             seriescolor := "black"
             xguide := "Time"
-            yguide := "Outcome"
-            [tp.treatment[2]]
+            yguide := "Outcome difference"
+            [tp.ts[length_T₀(tp)]]
         end
     end
 

@@ -10,6 +10,8 @@ where i = 1, 2, ..., N denotes the observation units in the panel, t = 1, ..., T
 periods, Y is an (N×T) matrix of outcomes, W is an (N×T) indicator matrix of treatment status, ω is
 a unit weight and λ is a time period weight. 
 
+The implementation follows the author's reference implementation in the R package `synthdid`.
+
 """
 struct SyntheticDiD{T1}# <: SCM where T1
     tp::T1
@@ -20,107 +22,207 @@ struct SyntheticDiD{T1}# <: SCM where T1
     se_τ̂::Vector{Float64}
 end
 
-function SyntheticDiD(x::BalancedPanel{SingleUnitTreatment{Continuous}})
-    ω̂ = zeros(length(x.is) - 1)
-    λ̂ = zeros(length_T₀(x))
-    ŷ = zeros(size(x.Y, 2))
+function SyntheticDiD(tp::BalancedPanel{SingleUnitTreatment{Continuous}})
+    ω̂ = zeros(length(tp.is) - 1)
+    λ̂ = zeros(length_T₀(tp))
+    ŷ = zeros(size(tp.Y, 2))
     τ̂ = zeros(1)
     se_τ̂ = zeros(1)
-    SyntheticDiD(x, ω̂, λ̂, ŷ, τ̂, se_τ̂)
+    SyntheticDiD(tp, ω̂, λ̂, ŷ, τ̂, se_τ̂)
+end
+
+function isfitted(x::SyntheticDiD)
+    all(!iszero, x.τ̂) || all(!iszero, x.se_τ̂)
 end
 
 function fit!(x::SyntheticDiD{BalancedPanel{SingleUnitTreatment{Continuous}}})
-
     (;Y, W) = x.tp
-    y₁₀, y₁₁, y₀₀, y₀₁ = decompose_y(x.tp)
+    
     T₀ = length_T₀(x.tp)
-    T₁ = length_T₁(x.tp)
-    Nₜᵣ = 1 # length(treated_ids(x)) - has to be one given type of BalancedPanel in this method
-    Nₖₒ = size(Y, 1) - Nₜᵣ
+    N₁ = 1 # length(treated_ids(x)) - has to be one given type of BalancedPanel in this method
+    N₀ = size(Y, 1) - N₁
 
-    ### Algorithm presented in Arkhangelsky et al. (2021), v4 arXiv
+    # Implementation of synthdid below assumes that treated unit comes last
+    swaprows!(Y, treated_ids(x.tp), size(Y, 1))
 
-    ## (1) Compute regularization parameter ζ
-    # First difference of outcomes for control units before treatment time
-    Δᵢₜ = Y[Not(treated_ids(x.tp)), 2:T₀] .- Y[Not(treated_ids(x.tp)), 1:T₀-1]
-    Δ̄ = mean(Δᵢₜ) # Average first difference
+    # Get estimate and store in SyntheticDiD object
+    estimate = synthdid_estimate(Y, N₀, T₀)   
+    x.τ̂ .= estimate.τ̂
+    x.λ̂ .= estimate.λ̂
+    x.ω̂ .= estimate.ω̂
 
-    σ̂ = √(sum((Δᵢₜ .- Δ̄)'*(Δᵢₜ .- Δ̄)) / (Nₖₒ*(T₀ - 1)))
-
-    ζ = (Nₜᵣ*T₁)^(1/4) * σ̂
-
-
-    ## (2) Compute unit weights ω̂
-    #!# Note - paper seems to generalise to multiple treated units already, here using one unit for
-    # now but should be 1/Nₖₒ * sum(Y[treated_ids(x), t]) at each time period
-    #!# Weights produced here are very non-sparse due to ζ*norm regularization - double check!
-    function ℓᵢ(ω) 
-        ω₀ = ω[1]; ω = @view ω[2:end]
-        (ω₀ .+ y₀₀'*ω .- y₁₀)'*(ω₀ .+ y₀₀'*ω .- y₁₀) + 1e12*(1.0 .- sum(ω))^2 + ζ^2*T₀*norm(ω)
-    end
-
-    # Bounds: ω₀ ∈ ℝ, ω ∈ Ω = {ω ∈ ℝ₊ᴺ: ∑wᵢ = 1} - essentially 0 ≤ ωᵢ ≤ 1 with sum constraint and ω₀
-    # unbounded
-    #!# again this will differ for multiple treated units 
-    lower = [-Inf; fill(0.0, Nₖₒ)]
-    upper = [Inf; fill(1.0, Nₖₒ)]
-    initial = [0.0; [1/Nₖₒ for _ ∈ 1:Nₖₒ]]
-
-    res = optimize(ℓᵢ, lower, upper, initial)
-
-    ω̂₀ = res.minimizer[1]  #!# this is probably actually unused?
-    ω̂ = res.minimizer[2:end]
-    x.ω̂ .= ω̂
-    
-    ## (3) Compute time weights λ̂
-    # Note small regularization added as per footnote 3 of the paper
-    function ℓₜ(λ)
-        λ₀ = λ[1]; λ = @view λ[2:end]
-        ȳ₀₁ = vec(sum(y₀₁, dims = 2) ./ size(y₀₁, 2)) # Average post-treatment outcome for control
-        (λ₀ .+ y₀₀*λ .- ȳ₀₁)'*(λ₀ .+ y₀₀*λ .- ȳ₀₁) + 1e12*(1.0 .- sum(λ))^2 + ζ^2*Nₖₒ*norm(λ)
-    end
-    
-    lower = [-Inf; fill(0.0, T₀)]
-    upper = [Inf; fill(1.0, T₀)]
-    initial = [0.0; [1/T₀ for _ ∈ 1:T₀]]
-
-    res = optimize(ℓₜ, lower, upper, initial)
-
-    λ̂₀ = res.minimizer[1]  #!# this is probably actually unused?
-    λ̂ = res.minimizer[2:end]
-
-    x.λ̂ .= λ̂
-    
-    ## (4) Run regression
-    # Need to estimate fixed effect model with time/unit fixed effects and 
-    #!# To do: for covariates we want to partial them out before this regression
-    # Add unit weights - 1 for treated unit, ω̂ᵢ for untreated
-    ω_df = DataFrame(Symbol(x.tp.id_var) => [treated_labels(x.tp); x.tp.is[x.tp.is .!= treated_labels(x.tp)]], :ω̂ => [1.0; ω̂])
-    df = leftjoin(x.tp.df, ω_df, on = x.tp.id_var)   
-
-    # Add time weights 
-    λ_df = DataFrame(Symbol(x.tp.t_var) => x.tp.ts, :λ̂ => [fill(1/T₁, T₁); λ̂])
-    df = leftjoin(df, λ_df, on = x.tp.t_var)
-
-    # Total weights - ωλ
-    df.sdid_weight = df.ω̂ .* df.λ̂
-
-    # Add treatment dummy based on treatment matrix
-    df.W = reshape(x.tp.W', length(x.tp.ts)*length(x.tp.is))
-
-    sdid_reg = reg(df,
-        term(x.tp.outcome_var) ~ term("W") + fe(term(x.tp.id_var)) + fe(term(x.tp.t_var)),
-        weights = :sdid_weight, Vcov.robust())
-
-    # Treatment effect is estimated as the coefficient on treatment dummy
-    τ̂ = coef(sdid_reg)
-    x.τ̂ .= τ̂
-    x.se_τ̂ .= stderror(sdid_reg)
-
-    # Counterfactual outcome is actual outcome plus treatment effect
-    ŷ₁₁ = y₁₁ .+ τ̂
-    x.ŷ .= [y₁₀; ŷ₁₁]
+    # return SynhtDiD object
+    return x
 end
 
 
-#!# TO DO - show method for this type
+function synthdid_estimate(Y, N₀, T₀;
+    ω_intercept = true, λ_intercept = true,
+    max_iter = 10_000, max_iter_pre_sparsify = 100, sparsify_function = sparsify_weights!)
+
+    @assert size(Y, 1) > N₀ && size(Y, 2) > T₀
+
+    N1 = size(Y, 1) - N₀
+    T1 = size(Y, 2) - T₀
+
+    ## (1) Compute regularization parameter ζ
+    # First difference of outcomes for control units before treatment time
+    Δᵢₜ = Y[1:N₀, 2:T₀] .- Y[1:N₀, 1:T₀-1]
+    Δ̄ = mean(Δᵢₜ) # Average first difference
+    
+    #!# Paper has the uncorrected standard deviation (dividing by N̨ₖₒ*(T₀-1) only) instead, 
+    # this is taken from the reference R implementation
+    σ̂ = √(sum((Δᵢₜ .- Δ̄).^2)/ (N₀*(T₀ - 1)-1))
+    
+    ζᵢ = (N1*T1)^(1/4) * σ̂
+    ζₜ = 1e-6 * σ̂
+
+    # Calculate calculated inputs
+    N1 = (size(Y, 1) - N₀)
+    T1 = (size(Y, 2) - T₀)
+
+    σ̂ = std(diff(Y[1:N₀, 1:T₀], dims = 2))
+    ηᵢ = (N1 * T1)^(1/4)
+    ηₜ = 1e-6
+    
+    ζᵢ = ηᵢ * σ̂
+    ζₜ = ηₜ * σ̂
+
+    min_decrease = 1e-5 * σ̂
+
+    # The following is the implementation for dim(X)[3] == 0, i.e. no covariates
+    Yc = collapsed_form(Y, N₀, T₀)
+
+    ## (2) Compute unit weights ω̂
+    #!# Footnote 5 mentions 10e-6*σ̂ rather than the NT^(1/4) calculation above
+    # Bounds: ω₀ ∈ ℝ, ω ∈ Ω = {ω ∈ ℝ₊ᴺ: ∑wᵢ = 1} - essentially 0 ≤ ωᵢ ≤ 1 with sum constraint and ω₀
+    ω̂ = sc_weight_fw(Yc[:, 1:T₀]', ζᵢ;
+        intercept = ω_intercept, min_decrease = min_decrease, max_iter = max_iter_pre_sparsify).w
+
+    
+    if !isnothing(sparsify_function)
+        ω̂ = sc_weight_fw(Yc[:, 1:T₀]', ζᵢ; w = sparsify_function(ω̂),
+            intercept = ω_intercept, min_decrease = min_decrease, max_iter = max_iter).w
+    end
+
+    ## (3) Compute time weights λ̂x
+    λ̂ = sc_weight_fw(Yc[1:N₀, :], ζₜ; 
+        intercept = λ_intercept, min_decrease = min_decrease, max_iter = max_iter_pre_sparsify).w
+
+    if !isnothing(sparsify_function)
+        λ̂ = sc_weight_fw(Yc[1:N₀, :], ζₜ; w = sparsify_function(λ̂),
+            intercept = λ_intercept, min_decrease = min_decrease, max_iter = max_iter).w
+    end
+
+    ## (4) Estimate τ
+    τ̂ = [-ω̂; fill(1/N1, N1)]' * Y * [-λ̂; fill(1/T1, T1)]
+
+    return (; τ̂, λ̂, ω̂)
+end
+
+function collapsed_form(Y, N₀, T₀)
+    N, T = size(Y)
+
+    [[Y[1:N₀, 1:T₀] mean(Y[1:N₀, T₀+1:T], dims = 2)];
+     [mean(Y[N₀+1:N, 1:T₀], dims = 1) mean(Y[N₀+1:N, T₀+1:T], dims = 2)]]
+end
+
+
+function sc_weight_fw(Y, ζ; 
+    intercept = true, w = nothing, min_decrease = 1e-3, max_iter = 1_000)
+
+    T₀ = size(Y, 2) - 1
+    N₀ = size(Y, 1)
+
+    w = isnothing(w) ? fill(1/T₀, T₀) : w
+    
+    if intercept
+        Y .-= mean(Y, dims = 1)
+    end
+
+    t = 0
+    vals = fill(NaN, max_iter)
+    A = Y[:, 1:T₀]
+    b = Y[:, T₀+1]
+    η = N₀ * ζ^2
+
+    ζ² = ζ^2
+
+    while t < max_iter && (t < 2 || vals[t-1] - vals[t] > min_decrease^2)
+        t += 1
+        wₚ = fw_step(A, w, b, η)
+        w = wₚ
+        #!# TO DO: this just seems to be ϵ = A * w - b, figure out whether there are cases where 
+        # it might not be, otherwise go for that simpler way of writing this
+        #ϵ = @view(Y[1:N₀, :]) * [w; -1]
+        ϵ = A * w - b
+        vals[t] = ζ² * sum(w.^2) + sum(ϵ.^2) / N₀
+    end
+
+    return (w = w, vals = vals)
+end
+
+
+function fw_step(A, x, b, η)
+    Ax = A*x # 575ns + 3 allocs, 5.3k
+    half_grad = vec((Ax .- b)' * A + (η .* x)') # This is 250ns, 4 allocs
+    
+    i = last(findmin(half_grad)) # basically free
+
+    d_x = -x # <50ns, but 1 allocation
+    d_x[i] = 1 - x[i] # basically free
+    
+    all(==(0), d_x) && return x # basically free
+
+    d_ϵ = A[:, i] .- Ax # 50ns, 2 allocations, 0.6k
+    step = (-half_grad' * d_x) / (sum(d_ϵ.^2) + η * sum(d_x.^2)) # 100ns, 3 allocs, 0.8k
+    constrained_step = clamp(step, 0, 1) # basically free
+
+    return x .+ constrained_step .* d_x
+end
+
+
+function fw_step(A, x, b, η, α)
+    Ax = A*x
+    half_grad = vec((Ax .- b)' * A + (η .* x)')
+    
+    i = last(findmin(half_grad))
+
+    x *= (1-α)
+    x[i] += α
+        
+    return x
+end
+
+
+function swaprows!(X::AbstractMatrix, i::Integer, j::Integer)
+    @inbounds for k = 1:size(X,2)
+        X[i, k], X[j, k] = X[j, k], X[i, k]
+    end
+end
+
+
+function sparsify_weights!(v)
+    v .= ifelse.(v .<= maximum(v)/4, 0.0, v)
+    v ./= sum(v)
+end
+
+
+# Pretty printing
+import Base.show
+
+function show(io::IO, ::MIME"text/plain", s::SyntheticDiD)
+
+    println(io, "Synthetic Difference-in-Differences Model")
+    
+    if isfitted(s)
+      println(io, "\tModel is fitted")
+      println(io, "\tImpact estimate: ",round.(only(s.τ̂), digits=3))
+      !iszero(s.se_τ̂) && println(io, "\t                  (",round.(only(s.se_τ̂), digits = 2),")")
+    else
+      println(io, "\nModel is not fitted")
+    end
+
+    #println(io, "Treatment panel:")
+    #display(s.tp)
+end

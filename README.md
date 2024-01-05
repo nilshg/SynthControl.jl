@@ -114,16 +114,17 @@ julia> plot(s_model)
 ### Fitting a `SyntheticDiD` model
 
 The package also implements a the synthetic differences-in-differences estimator of Arkhangelsky et
-al. (2021) with the `SyntheticDiD` type. An example using data on German reunification:
+al. (2021) with the `SyntheticDiD` type. An example using data on California's ban of tobacco 
+advertising:
 
 ```
-julia> bp = load_germany_panel()
+julia> sp = load_smoking_panel()
 Balanced Panel - single treated unit, continuous treatment
-    Treated unit: West Germany
-    Number of untreated units: 16
-    First treatment period: 1990
-    Number of pretreatment periods: 30
-    Number of treatment periods: 14
+    Treated unit: 3
+    Number of untreated units: 38
+    First treatment period: 1989
+    Number of pretreatment periods: 19
+    Number of treatment periods: 12
 ```
 
 Here we are using the `load_*_panel()` family of functions rather than the `load_*()` family of
@@ -133,20 +134,20 @@ object is returned which obviates the need for creating this from the raw data.
 Fitting the model:
 
 ```
-julia> sdid_model = SyntheticDiD(bp);
+julia> sdid_model = SyntheticDiD(sp)
+Synthetic Difference-in-Differences Model
 
-julia> fit!(sdid_model);
+Model is not fitted
 ```
 
-`show` and `plot` support is not yet implemented for `SyntheticDiD` models, but the point estimate
-and standard error of the causal effect can be accessed directly from the model object:
+As before, the `fit!` function is used to fit the model:
 
 ```
-julia> sdid_model.τ̂
-1-element Vector{Float64}:
- -3121.95256130856
+julia> fit!(sdid_model)
+Synthetic Difference-in-Differences Model
+        Model is fitted
+        Impact estimate: -15.604
+```
 
-julia> sdid_model.se_τ̂
-1-element Vector{Float64}:
- 327.9157408571397
- ```
+The model estimate can also be accessed as `sdid_model.τ̂`, and the standard error as
+`sdid_model.se_τ̂`. Estimation of standard errors is currently not implemented. 

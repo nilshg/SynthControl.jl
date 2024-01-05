@@ -30,7 +30,7 @@ end
 
 @testset "Synthetic Differences-in-Differences" begin
 
-  bp = load_germany_panel()
+  bp = load_smoking_panel()
 
   @test bp isa BalancedPanel{SingleUnitTreatment{Continuous}}
 
@@ -38,7 +38,7 @@ end
 
   fit!(sdid_model)
 
-  @test only(sdid_model.τ̂) ≈ -3121.95 atol=0.1
+  @test only(sdid_model.τ̂) ≈ -15.604 atol=0.1
 end
 
 

@@ -69,7 +69,8 @@ every non-treated unit in the data set as the treated unit in turn and estimatin
 treatment impact on this unit. Results are stored in the `p_test_res` field and can be
 used as the basis for inference.
 """
-function fit!(s::SimpleSCM; placebo_test = false)
+function fit!(s::SimpleSCM; placebo_test = false, 
+    optimizer = HiGHS.Optimizer, silent = true)
 
     # Make sure that we have a single continuous treatment
     s isa SimpleSCM{BalancedPanel{SingleUnitTreatment{Continuous}}} ||
@@ -86,20 +87,22 @@ function fit!(s::SimpleSCM; placebo_test = false)
     J = size(yⱼ₀, 1)
 
     # Objective function
-    # Hat tip to Mathieu Tanneau who suggested switching to a quadratic formulation
+    # Hat tip to Mathieu Tanneau who suggested switching to a quadratic formulation and solving 
+    # this with JuMP which gave a 100x speedup over Optim.jl
     # !# Check why yⱼ₀ transpose is needed - is this consistent with mathematical formulation of
     # model? Appears so, the notation for y₁₀ based on the outcome matrix and x₀ based on a vector 
     # of covariates are incompatible 
-    obj(w) = (y₁₀ .- yⱼ₀'w)'*(y₁₀ .- yⱼ₀'w) + 1e6(1.0 -sum(w))^2
-
-    # Initial condition and bounds
-    initial = [1/J for _ in 1:J]
-    lower = zeros(J)
-    upper = ones(J)
-
+    model = Model(optimizer)
+    silent && set_silent(model)
+    @variable(model, 0 <= w[1:J] <= 1)
+    @constraint(model, sum(w[i] for i ∈ 1:J) == 1)
+    
+    @objective(model, Min, (y₁₀ .- yⱼ₀'w)'*(y₁₀ .- yⱼ₀'w))
+    
     # Get weights through optimization
-    res = optimize(obj, lower, upper, initial)
-    s.w = res.minimizer
+    JuMP.optimize!(model)
+    @assert JuMP.termination_status(model) == JuMP.OPTIMAL
+    s.w = JuMP.value.(model[:w])
 
     # Get estimates
     s.ŷ₁ = vec(s.w'*[yⱼ₀ yⱼ₁])
@@ -140,10 +143,10 @@ import Base.show
 
 function show(io::IO, ::MIME"text/plain", s::SimpleSCM)
 
-    println(io, "\nSynthetic Control Model\n")
+    println(io, "Synthetic Control Model\n")
     println(io, "Treatment panel:")
     display(s.treatment_panel)
-
+    
     if isfitted(s)
       println(io, "\tModel is fitted")
       println(io, "\tImpact estimates: ",round.(s.τ̂, digits=3))
