@@ -150,4 +150,14 @@ Synthetic Difference-in-Differences Model
 ```
 
 The model estimate can also be accessed as `sdid_model.τ̂`, and the standard error as
-`sdid_model.se_τ̂`. Estimation of standard errors is currently not implemented. 
+`sdid_model.se_τ̂`. The only algorithm for estimation of standard errors currently implemented is
+the placebo algorithm, in which the estimator is sequentially applied to each control unit. By
+default, standard errors are not estimated, the `se` keyword can be used to do so:
+
+```
+julia> fit!(sdid_model; se = :placebo)
+Synthetic Difference-in-Differences Model
+        Model is fitted
+        Impact estimate: -15.604
+                          (9.31)
+```
