@@ -39,6 +39,12 @@ end
   fit!(sdid_model)
 
   @test only(sdid_model.τ̂) ≈ -15.604 atol=0.1
+
+  @test_throws "placebo" fit!(sdid_model, se = :jackknife)
+
+  fit!(sdid_model, se = :placebo)
+
+  @test only(sdid_model.se_τ̂) ≈ 9.3 atol=0.1
 end
 
 

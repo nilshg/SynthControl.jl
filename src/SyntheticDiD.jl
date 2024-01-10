@@ -12,6 +12,10 @@ a unit weight and λ is a time period weight.
 
 The implementation follows the author's reference implementation in the R package `synthdid`.
 
+NOTE: The implementation assumes that the outcomes and treatment matrices are sorted such that
+treated units come last in both `Y` and `W`. It therefore checks whether `W` is sorted and swaps
+rows in both `Y` and `W` to sort both matrices accordingly if required. 
+
 """
 struct SyntheticDiD{T1}# <: SCM where T1
     tp::T1
@@ -35,7 +39,8 @@ function isfitted(x::SyntheticDiD)
     all(!iszero, x.τ̂) || all(!iszero, x.se_τ̂)
 end
 
-function fit!(x::SyntheticDiD{BalancedPanel{SingleUnitTreatment{Continuous}}})
+function fit!(x::SyntheticDiD{BalancedPanel{SingleUnitTreatment{Continuous}}};
+    se = nothing)
     (;Y, W) = x.tp
     
     T₀ = length_T₀(x.tp)
@@ -43,7 +48,11 @@ function fit!(x::SyntheticDiD{BalancedPanel{SingleUnitTreatment{Continuous}}})
     N₀ = size(Y, 1) - N₁
 
     # Implementation of synthdid below assumes that treated unit comes last
-    swaprows!(Y, treated_ids(x.tp), size(Y, 1))
+    if !issorted(any(x) for x ∈ eachrow(W)) 
+        treated_row = treated_ids(x.tp)
+        swaprows!(Y, treated_row, size(Y, 1))
+        swaprows!(W, treated_row, size(W, 1))
+    end
 
     # Get estimate and store in SyntheticDiD object
     estimate = synthdid_estimate(Y, N₀, T₀)   
@@ -51,10 +60,41 @@ function fit!(x::SyntheticDiD{BalancedPanel{SingleUnitTreatment{Continuous}}})
     x.λ̂ .= estimate.λ̂
     x.ω̂ .= estimate.ω̂
 
+    if !isnothing(se)
+        if se != :placebo
+            error("Only placebo standard error estimation is currently implemented")
+        else
+            V̂ = get_V̂_τ(x).V̂
+            x.se_τ̂ .= √(V̂)
+        end
+    end
+
     # return SynhtDiD object
     return x
 end
 
+
+function get_V̂_τ(x::SyntheticDiD{BalancedPanel{SingleUnitTreatment{Continuous}}})
+    (;Y, W) = x.tp
+
+    Y_untreated = Y[Not(treated_ids(x.tp)), :]
+
+    T₀ = length_T₀(x.tp)
+    N₁ = 1
+    N₀ = size(Y_untreated, 1) - N₁
+
+    τ̂s = zeros(N₀)
+
+    for i ∈ 1:N₀-1
+        swaprows!(Y_untreated, i, size(Y_untreated, 1))
+        τ̂s[i] = synthdid_estimate(Y_untreated, N₀, T₀).τ̂
+    end
+
+    swaprows!(Y_untreated, 1, size(Y_untreated, 1))
+    τ̂s[end] = synthdid_estimate(Y_untreated, N₀, T₀).τ̂
+
+    return (V̂ = var(τ̂s), τ̂s = τ̂s)
+end
 
 function synthdid_estimate(Y, N₀, T₀;
     ω_intercept = true, λ_intercept = true,
@@ -196,7 +236,7 @@ end
 
 
 function swaprows!(X::AbstractMatrix, i::Integer, j::Integer)
-    @inbounds for k = 1:size(X,2)
+    @inbounds for k = axes(X,2)
         X[i, k], X[j, k] = X[j, k], X[i, k]
     end
 end
