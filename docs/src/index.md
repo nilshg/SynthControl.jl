@@ -13,12 +13,13 @@ The following table provides an overview of the planned scope of the package as 
 implementation status 
 
 | Estimator |  Point estimate  | Covariates |  Standard Errors  |  Reference implementation |
-|-----------|--------|-------|------|-------|
-| Simple SCM|   🟢   |  🟥  |  🟥  |  None |
-| ADH2011   |   🟡   |  🟥  |  🟥  |  None |
-| SyntheticDiD |  🟢  |  🟥  |  🟡 |  [synthdid (R)](https://github.com/synth-inference/synthdid) |
-| PenalizedSCM |  🟥  |  🟥  |  🟥 |  [pensynth (R)](https://github.com/jeremylhour/pensynth) |
-| AugmentedSCM |  🟥  |  🟥  |  🟥 |  [pensynth (R)](https://github.com/ebenmichael/augsynth) |  
+|--------------|:----:|:----:|:-----:|-------|
+| Simple SCM   |  🟢  |  🟥  |  🟥  |  None |
+| ADH2011      |  🟡  |  🟥  |  🟥  |  None |
+| SyntheticDiD |  🟢  |  🟥  |  🟡  |  [synthdid (R)](https://github.com/synth-inference/synthdid) |
+| PenalizedSCM |  🟥  |  🟥  |  🟥  |  [pensynth (R)](https://github.com/jeremylhour/pensynth) |
+| AugmentedSCM |  🟥  |  🟥  |  🟥  |  [augsynth (R)](https://github.com/ebenmichael/augsynth) |  
+| MC-NNM       |  🟡  |  🟥  |  🟥  | [fect (R)](https://github.com/xuyiqing/fect/)  |
 
 Contributions to add methods to the package scope - or even better, full implementations! - are very
 much welcome.
