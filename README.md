@@ -113,9 +113,9 @@ julia> plot(s_model)
 
 ### Fitting a `SyntheticDiD` model
 
-The package also implements a the synthetic differences-in-differences estimator of Arkhangelsky et
-al. (2021) with the `SyntheticDiD` type. An example using data on California's ban of tobacco 
-advertising:
+The package also implements a the synthetic differences-in-differences estimator of [Arkhangelsky et
+al. (2021)](https://www.aeaweb.org/articles?id=10.1257/aer.20190159) with the `SyntheticDiD` type.
+An example using data on California's ban of tobacco advertising:
 
 ```
 julia> sp = load_smoking_panel()
@@ -160,4 +160,30 @@ Synthetic Difference-in-Differences Model
         Model is fitted
         Impact estimate: -15.604
                           (9.31)
+```
+
+### Fitting a `MC-NNM` model (experimental)
+
+The package includes an experimental implementation of the Matrix Completion with Nuclear Norm
+Minimization (MC-NNM) estimator ([Athey et al.,
+2021](https://www.tandfonline.com/doi/full/10.1080/01621459.2021.1891924)). Due to its experimental
+nature it is currently not exported and has to be accessed through the internal `fect_default`
+function:
+
+```
+julia> SynthControl.fect_default(sp)
+[ Info: Cross-validating...
+        λ_norm = 1.0; MSPE = 184.11
+        λ_norm = 0.4217; MSPE = 97.12
+        λ_norm = 0.17783; MSPE = 60.18
+        λ_norm = 0.07499; MSPE = 55.38
+        λ_norm = 0.03162; MSPE = 83.68
+        λ_norm = 0.01334; MSPE = 133.34
+        λ_norm = 0.00562; MSPE = 176.03
+        λ_norm = 0.00237; MSPE = 180.63
+        λ_norm = 0.001; MSPE = 182.63
+        λ_norm = 0.0; MSPE = 184.11
+
+        λ_norm* = 0.07499
+(τ̂ᵃᵗᵗ = -25.90741309106447, eff = [-3.777787420126515 -2.1951292344078013 … 2.8272388331494795 1.7451236037973956; -2.225234537444024 -0.6429018374729338 … -0.5174054676892013 -0.35710884584517544; … ; 2.3972577740355073 1.5448822989699096 … -1.6290392876871636 2.093390785866191; 1.1496735178409807 -1.3143906741400713 … -1.1176962789642886 -4.041039492499593])
 ```

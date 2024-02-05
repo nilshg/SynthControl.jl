@@ -1,6 +1,6 @@
 module SynthControl
 
-using Dates, DataFrames, LinearAlgebra, RecipesBase, Statistics
+using Dates, DataFrames, LinearAlgebra, RecipesBase, Statistics, StatsBase
 using JuMP, HiGHS 
 
 import CSV
@@ -19,6 +19,7 @@ export load_brexit_panel, load_germany_panel, load_basque_panel, load_smoking_pa
 # Estimators
 include("SimpleSCM.jl")
 include("SyntheticDiD.jl")
+include("MC_fect.jl")
 
 # Utilities
 include("plotrecipes.jl")
@@ -28,19 +29,17 @@ include("load_data.jl")
 using PrecompileTools
 
 @setup_workload begin
-    df = DataFrame(state = [fill("California", 5); fill("Wyoming", 5)],
-            year = [1980:1984; 1980:1984],
-            outcome = [rand(4); rand()+3; rand(5)])
-
     @compile_workload begin
-        bp = BalancedPanel(df, 
-            "California" => 1984; id_var = :state, t_var = :year, outcome_var = :outcome)
+        sd = load_smoking()
+        sp = load_smoking_panel()
 
-        simplescm = SimpleSCM(bp)
+        simplescm = SimpleSCM(sp)
         fit!(simplescm)
 
-        synthdid = SyntheticDiD(bp)
+        synthdid = SyntheticDiD(sp)
         fit!(synthdid)
+
+        fect_result = SynthControl.fect_default(sp; verbose = false)
     end
 end
 

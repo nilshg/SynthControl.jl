@@ -28,7 +28,7 @@ using SynthControl, TreatmentPanels, DataFrames, Dates
 
 end
 
-@testset "Synthetic Differences-in-Differences" begin
+@testset "SyntheticDiD" begin
 
   bp = load_smoking_panel()
 
@@ -68,4 +68,42 @@ end
   bp = load_brexit_panel()
   @test typeof(bp) <: BalancedPanel
 
+end
+
+
+@testset "MC-NNM" begin
+  # Test outputs of helper functions against R/C++ versions
+  test22 = [1.0 3; 2 4]
+  test32 = [1.0 4; 2 5; 3 6]
+  test23 = [1.0; 2;; 3; 4;; 5; 6]
+
+  YYt, μ_Yt, α_Yt, xᵢ_Yt = SynthControl.Y_demean(test22, 1)
+  @test all((YYt, μ_Yt, α_Yt, xᵢ_Yt) .== ([-0.5 -0.5; 0.5 0.5], 2.5, [1.5, 3.5], [0.0, 0.0]))
+  YYt, μ_Yt, α_Yt, xᵢ_Yt = SynthControl.Y_demean(test22, 2)
+  @test all((YYt, μ_Yt, α_Yt, xᵢ_Yt) .== ([-1.0 1.0; -1.0 1.0], 2.5, [0.0, 0.0], [2.0, 3.0]))
+  YYt, μ_Yt, α_Yt, xᵢ_Yt = SynthControl.Y_demean(test22, 3)
+  @test all((YYt, μ_Yt, α_Yt, xᵢ_Yt) .== ([0 0; 0 0], 2.5, [1.5, 3.5], [2.0, 3.0]))
+
+  μ_test, FE_ad_test, α_test, xᵢ_test = SynthControl.fe_add([1, 2], [3, 4], 5, 2, 2, 3)
+  @test all((μ_test, FE_ad_test, α_test, xᵢ_test) .== (5, [-1.0 0.0; 0.0 1.0], [-4, -3], [-2, -1]))
+
+  μt, FEt, αt, xᵢt, FEiut = SynthControl.ife(test22, 3, 1, 1, false, 0.1)
+  @test all(isapprox.((μt, FEt, αt, xᵢt, FEiut), (2.5, [1.0 3; 2 4], [-1.0, 1], [-0.5, 0.5], [0.0 0; 0 0])))
+  μt, FEt, αt, xᵢt, FEiut = SynthControl.ife(test32, 3, 1, 1, false, 0.1)
+  @test all(isapprox.((μt, FEt, αt, xᵢt, FEiut), (3.5, [1.0 4; 2 5; 3 6], [-1.5, 1.5], [-1.0, 0, 1], [0.0 0; 0 0; 0 0])))
+
+  λt, ft, VNTt, FEt = SynthControl.panel_factor(test22, 1)
+  @test all(isapprox.((λt, ft, VNTt, FEt), ([-0.5721252, -1.2933185], [-2.226040, -3.158762], [7.466517], 
+      [1.273574 2.878979; 1.807207 4.085286]), atol = 0.0001))
+  λt, ft, VNTt, FEt = SynthControl.panel_factor(test22, 2)
+  @test all(isapprox.((λt, ft, VNTt, FEt), ([-0.5721252 -1.2933185; -1.2933185 0.5721252], 
+      [-2.226040 0.2115285; -3.158762 -0.1490682], [7.466517 0; 0 0.03348281], test22), atol = 0.01))
+
+  @test SynthControl.panel_FE(test22, 0.1, false) ≈ [1.180357 2.668257; 1.674932 3.786270] atol = 0.001
+  @test SynthControl.panel_FE(test32, 0.1, false) ≈ [1.346675 3.575952; 1.930930 4.660546; 2.515185 5.745139] atol = 0.001
+  @test SynthControl.panel_FE(test23, 0.1, false) ≈ [1.271176 2.902109 4.533041; 1.610219 3.676147 5.742075] atol = 0.001
+  @test SynthControl.panel_FE(test23, 0.2, false) ≈ [1.185724 2.707020 4.228317; 1.501975 3.429025 5.356076] atol = 0.001
+  #!# hard impute = false not tested as the function does not seem exported in the R package?
+
+  @test SynthControl.fect_default(load_smoking_panel(), verbose = false).τ̂ᵃᵗᵗ ≈ -25.907 atol = 0.01
 end

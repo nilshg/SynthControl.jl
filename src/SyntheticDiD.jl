@@ -10,7 +10,8 @@ where i = 1, 2, ..., N denotes the observation units in the panel, t = 1, ..., T
 periods, Y is an (N×T) matrix of outcomes, W is an (N×T) indicator matrix of treatment status, ω is
 a unit weight and λ is a time period weight. 
 
-The implementation follows the author's reference implementation in the R package `synthdid`.
+The implementation follows the author's reference implementation in the R package `synthdid`,
+published by the authors under a BSD-3 license at https://github.com/synth-inference/synthdid/
 
 NOTE: The implementation assumes that the outcomes and treatment matrices are sorted such that
 treated units come last in both `Y` and `W`. It therefore checks whether `W` is sorted and swaps
