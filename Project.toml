@@ -1,7 +1,7 @@
 name = "SynthControl"
 uuid = "a73a6d50-3b99-11e9-2e1c-6f5007f3555d"
 authors = ["Nils <nilshg@hotmail.com>"]
-version = "0.4.2"
+version = "0.4.3"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -24,11 +24,13 @@ TreatmentPanels = "7885c543-3ac4-48a3-abed-7a36d7ddb69f"
 [compat]
 CSV = "0.9, 0.10"
 DataFrames = "1"
+GLM = "1"
 HiGHS = "1"
 JuMP = "1"
 PrecompileTools = "1"
 RecipesBase = "1"
 Reexport = "1"
+StatsBase = "0.34"
 TreatmentPanels = "0.3, 0.4"
 julia = "1.6"
 
