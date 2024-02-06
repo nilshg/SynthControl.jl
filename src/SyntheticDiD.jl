@@ -40,6 +40,16 @@ function isfitted(x::SyntheticDiD)
     all(!iszero, x.τ̂) || all(!iszero, x.se_τ̂)
 end
 
+
+"""
+    fit!
+
+    Fit a synthetic difference-in-differences model to the data. The optional keyword argument `se`
+    determines how standard errors are estimated and is set to `nothing` by default. Currently only
+    permutation inference is implemented for the estimation of standard errors, which is available
+    with `se = :placebo`.
+
+"""
 function fit!(x::SyntheticDiD{BalancedPanel{SingleUnitTreatment{Continuous}}};
     se = nothing)
     (;Y, W) = x.tp
