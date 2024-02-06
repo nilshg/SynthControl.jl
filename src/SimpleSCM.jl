@@ -11,7 +11,6 @@ unit as well as the estimated treatment effect from comparing synthetic control 
 outcome of the treated unit.
 
 """
-
 mutable struct SimpleSCM{T1} <: SCM
     treatment_panel::T1
     w::Vector{Float64} # Vector of weights

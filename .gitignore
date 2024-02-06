@@ -1,3 +1,4 @@
 /Manifest.toml
 /src/MC-NNM.jl
 /.vscode
+docs/build/
