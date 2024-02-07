@@ -15,7 +15,7 @@ implementation status
 | Estimator |  Point estimate  | Covariates |  Standard Errors  |  Reference implementation |
 |--------------|:----:|:----:|:-----:|------|
 | Simple SCM   |  🟢  |  🟥  |  🟥  | None |
-| ADH2011      |  🟡  |  🟥  |  🟥  | None |
+| ADH2010      |  🟡  |  🟥  |  🟥  | None |
 | SyntheticDiD |  🟢  |  🟥  |  🟡  | [synthdid (R)](https://github.com/synth-inference/synthdid) |
 | PenalizedSCM |  🟥  |  🟥  |  🟥  | [pensynth (R)](https://github.com/jeremylhour/pensynth) |
 | AugmentedSCM |  🟥  |  🟥  |  🟥  | [augsynth (R)](https://github.com/ebenmichael/augsynth) |  
@@ -30,7 +30,7 @@ much welcome.
 * Package design
 * Available estimators
     * SimpleSCM
-    * ADH2011
+    * ADH2010
     * SyntheticDiD
     * PenalizedSCM
     * AugmentedSCM
