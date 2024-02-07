@@ -1,13 +1,11 @@
 ## Simple Synthetic Control Model
 
 This method captures the simple-most version of a Synthetic Control Model. It only relies on
-outcome data $Y_{it}$ and treatment indicators $W_{it}$ to find unit-weights $\omega_i$ by solving
+outcome data ``Y_{it}`` and treatment indicators ``W_{it}`` to find unit-weights ``\omega_i`` by solving
 
-$$
-\omega^* = \arg \min_{\omega} || Y_{tr, 1:T_0} - \omega Y_{co, 1:T_0} ||_2 \\
+$$\omega^* = \arg \min_{\omega} || Y_{tr, 1:T_0} - \omega Y_{co, 1:T_0} ||_2 \\
 s.t. \sum_{i = 1}^{N_{co}} \omega_i = 1 \\
-0 \leq \omega_i \leq 1 \ \forall \ i \in 1, ..., N_{co}
-$$
+0 \leq \omega_i \leq 1 \ \forall \ i \in 1, ..., N_{co}$$
 
 where $Y_{tr, \cdot}$ is a length $T_0$ vector of pre-treatment outcomes for the treated unit,
 $Y_{co, 1:T_0}$ is a $(N_{co} \times T_0)$ matrix of pre-treatment outcomes for the $N_{co}$ control
