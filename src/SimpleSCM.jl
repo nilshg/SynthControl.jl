@@ -149,6 +149,7 @@ function show(io::IO, ::MIME"text/plain", s::SimpleSCM)
     if isfitted(s)
       println(io, "\tModel is fitted")
       println(io, "\tImpact estimates: ",round.(s.τ̂, digits=3))
+      println(io, "\tATT: $(round(sum(s.τ̂)/length(s.τ̂), digits = 3))")
     else
       println(io, "\nModel is not fitted")
     end

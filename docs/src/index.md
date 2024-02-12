@@ -26,16 +26,9 @@ much welcome.
 
 ## Documentation outline
 
-* Introduction to Synthetic Control estimation
-* Package design
-* Available estimators
-    * SimpleSCM
-    * ADH2010
-    * SyntheticDiD
-    * PenalizedSCM
-    * AugmentedSCM
-    * MC-NNM
-* Examples
+```@contents
+```
+
 
 ## API 
 
