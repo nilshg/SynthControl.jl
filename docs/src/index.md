@@ -14,7 +14,7 @@ implementation status
 
 | Estimator |  Point estimate  | Covariates |  Standard Errors  |  Reference implementation |
 |--------------|:----:|:----:|:-----:|------|
-| Simple SCM   |  🟢  |  🟥  |  🟥  | None |
+| Simple SCM   |  🟢  |  🟥  |  🟡  | None |
 | ADH2010      |  🟡  |  🟥  |  🟥  | None |
 | SyntheticDiD |  🟢  |  🟥  |  🟡  | [synthdid (R)](https://github.com/synth-inference/synthdid) |
 | PenalizedSCM |  🟥  |  🟥  |  🟥  | [pensynth (R)](https://github.com/jeremylhour/pensynth) |

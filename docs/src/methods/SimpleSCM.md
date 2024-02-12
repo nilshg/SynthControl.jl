@@ -77,7 +77,24 @@ julia> mean(simple_scm.τ̂)
 -19.51362976399461
 ```
 
-This 
+To esimate standard errors, an optional placebo test can be run in which a treatment effect is
+estimated for the post-treatment period for each of the untreated units in turn, with the treated
+unit excluded from the donor pool. 
+
+```
+julia> fit!(simple_scm; placebo_test = true)
+```
+
+Where the placebo test has been run, the `p_test_res` field of the `SimpleSCM` object holds the
+estimated post-treatment outcomes for each untreated unit. 
+
+The standard deviation of the treatment effects for other units can serve as an estimator of the
+standard error of the treatment effect:
+
+```
+julia> √(var(mean.(eachrow(sscm.p_test_res))))
+10.776022984492037
+```
 
 [^1]: Abadie, A., Diamond, A., and Hainmüller, J. (2010): *Synthetic Control Methods for Comparative
     Case Studies: Estimating the Effect of California’s Tobacco Control Program*, American Journal
