@@ -3,13 +3,14 @@
 # SynthControl.jl
 Julia package for synthetic control methods
 
-The package is currently at alpha stage - it currently offers a basic `SyntheticControlModel`
-implementation which uses all pre-treatment periods and no other covariates in constructing the
-control unit. 
+The package is currently in beta stage - check the documentation for the current
+implementation status of a variety of different synthetic control estimators and inference
+methods.
 
 ## Installation
 
-The package is registered in the general registry, installation therefore works through the Pkg REPL
+The package is registered in the general registry, installation therefore works through the
+Pkg REPL
 
 ```
 pkg> add SynthControl
@@ -43,12 +44,11 @@ julia> df = load_brexit()
 The package defines a `SimpleSCM` type, instances of which can be constructed from a
 `TreatmentPanel` object from the package
 [`TreatmentPanels`](https://github.com/nilshg/TreatmentPanels.jl). The `TreatmentPanel` is
-constructed from a `DataFrame` and a specification of treatment assignment. The `SimpleSCM` model
-constructs a synthetic control unit based only 
+constructed from a `DataFrame` and a specification of treatment assignment. The `SimpleSCM`
+model constructs a synthetic control unit based only on the pre-treatment outcomes.
 
-The example data set includes quarterly GDP for a number of OECD countries, and
-we are interested in estimating the impact of the Brexit vote in Q2 2016 on GDP
-in the UK:
+The example data set includes quarterly GDP for a number of OECD countries, and we are
+interested in estimating the impact of the Brexit vote in Q2 2016 on GDP in the UK:
 
 ```
 julia> bp = BalancedPanel(df, "United Kingdom" => Date(2016, 7, 1); id_var = :country, t_var = :quarter, outcome_var = :realgdp)
@@ -96,13 +96,12 @@ Balanced Panel - single treated unit, continuous treatment
         Impact estimates: [-0.54, -0.31, -0.206, -0.732, -1.241, -1.482, -1.818, -2.327, -1.994]
 ```
 
-The reported impact estimates are the difference between observed outcome variable
-and estimated outcome in the absence of treatment - a negative value therefore means
-the treatment is expected to have reduced the outcome variable compared to the
-counterfactual.
+The reported impact estimates are the difference between observed outcome variable and
+estimated outcome in the absence of treatment - a negative value therefore means the
+treatment is expected to have reduced the outcome variable compared to the counterfactual.
 
-The package also defines a [plot recipe](https://github.com/JuliaPlots/RecipesBase.jl)
-which allows to visualise the estimated impact:
+The package also defines a [plot recipe](https://github.com/JuliaPlots/RecipesBase.jl) which
+allows to visualise the estimated impact:
 
 ```
 julia> using Plots
@@ -113,9 +112,9 @@ julia> plot(s_model)
 
 ### Fitting a `SyntheticDiD` model
 
-The package also implements a the synthetic differences-in-differences estimator of [Arkhangelsky et
-al. (2021)](https://www.aeaweb.org/articles?id=10.1257/aer.20190159) with the `SyntheticDiD` type.
-An example using data on California's ban of tobacco advertising:
+The package also implements a the synthetic differences-in-differences estimator of
+[Arkhangelsky et al. (2021)](https://www.aeaweb.org/articles?id=10.1257/aer.20190159) with
+the `SyntheticDiD` type. An example using data on California's ban of tobacco advertising:
 
 ```
 julia> sp = load_smoking_panel()
@@ -127,9 +126,10 @@ Balanced Panel - single treated unit, continuous treatment
     Number of treatment periods: 12
 ```
 
-Here we are using the `load_*_panel()` family of functions rather than the `load_*()` family of
-functions used above - when using the `panel` version of the `load` functions, a `BalancedPanel`
-object is returned which obviates the need for creating this from the raw data. 
+Here we are using the `load_*_panel()` family of functions rather than the `load_*()` family
+of functions used above - when using the `panel` version of the `load` functions, a
+`BalancedPanel` object is returned which obviates the need for creating this from the raw
+data. 
 
 Fitting the model:
 
@@ -150,9 +150,10 @@ Synthetic Difference-in-Differences Model
 ```
 
 The model estimate can also be accessed as `sdid_model.τ̂`, and the standard error as
-`sdid_model.se_τ̂`. The only algorithm for estimation of standard errors currently implemented is
-the placebo algorithm, in which the estimator is sequentially applied to each control unit. By
-default, standard errors are not estimated, the `se` keyword can be used to do so:
+`sdid_model.se_τ̂`. The only algorithm for estimation of standard errors currently
+implemented is the placebo algorithm, in which the estimator is sequentially applied to each
+control unit. By default, standard errors are not estimated, the `se` keyword can be used to
+do so:
 
 ```
 julia> fit!(sdid_model; se = :placebo)
@@ -164,11 +165,11 @@ Synthetic Difference-in-Differences Model
 
 ### Fitting a `MC-NNM` model (experimental)
 
-The package includes an experimental implementation of the Matrix Completion with Nuclear Norm
-Minimization (MC-NNM) estimator ([Athey et al.,
-2021](https://www.tandfonline.com/doi/full/10.1080/01621459.2021.1891924)). Due to its experimental
-nature it is currently not exported and has to be accessed through the internal `fect_default`
-function:
+The package includes an experimental implementation of the Matrix Completion with Nuclear
+Norm Minimization (MC-NNM) estimator ([Athey et al.,
+2021](https://www.tandfonline.com/doi/full/10.1080/01621459.2021.1891924)). Due to its
+experimental nature it is currently not exported and has to be accessed through the internal
+`fect_default` function:
 
 ```
 julia> SynthControl.fect_default(sp)
